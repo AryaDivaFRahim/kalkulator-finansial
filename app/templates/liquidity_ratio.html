@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Rasio Likuiditas</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .form-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 768px) { .form-grid { grid-template-columns: 1fr 1fr; } }
+        .form-section h4 { margin-top: 0; color: var(--header-bg); }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
+        .ratio-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); text-align: center; border-bottom: 5px solid; }
+        .ratio-card h5 { margin-top: 0; font-size: 1.1em; color: #555; }
+        .ratio-card .value { font-size: 2.5em; font-weight: 700; }
+        .ratio-card .status { font-weight: 600; font-size: 1.2em; }
+        .ratio-card p { font-size: 0.85em; color: #666; margin-top: 10px; }
+
+        .details-box { background-color: #f7f9fc; border: 1px solid #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 30px; }
+        .details-box summary { font-weight: 600; cursor: pointer; color: var(--header-bg); font-size: 1.1em; }
+        .calc-step { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-tachometer-alt"></i>
+            <h1>Kalkulator Rasio Likuiditas</h1>
+            <p>Ukur kemampuan perusahaan untuk memenuhi kewajiban jangka pendeknya.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.liquidity_ratio_calculator') }}" method="POST">
+                <div class="form-grid">
+                    <div class="form-section">
+                        <h4><i class="fas fa-wallet"></i> Aset Likuid (Current Assets)</h4>
+                        <div class="form-group"><label>Kas & Setara Kas (Rp)</label><input type="number" name="cash" placeholder="0" value="0"></div>
+                        <div class="form-group"><label>Piutang Usaha (Rp)</label><input type="number" name="receivables" placeholder="0" value="0"></div>
+                        <div class="form-group"><label>Persediaan (Inventory)(Rp)</label><input type="number" name="inventory" placeholder="0" value="0"></div>
+                        <div class="form-group"><label>Aset Likuid Lainnya(Rp)</label><input type="number" name="other_current_assets" placeholder="0" value="0"></div>
+                    </div>
+                    <div class="form-section">
+                        <h4><i class="fas fa-file-invoice"></i> Utang Likuid (Current Liabilities)</h4>
+                        <div class="form-group"><label>Utang Usaha (Rp)</label><input type="number" name="payables" placeholder="0" value="0"></div>
+                        <div class="form-group"><label>Utang Jangka Pendek (Rp)</label><input type="number" name="short_term_debt" placeholder="0" value="0"></div>
+                        <div class="form-group"><label>Utang Likuid Lainnya (Rp)</label><input type="number" name="other_current_liabilities" placeholder="0" value="0"></div>
+                    </div>
+                </div>
+                <button type="submit" class="btn-calculate" style="margin-top:20px;"><i class="fas fa-calculator"></i> Hitung Rasio</button>
+            </form>
+        </div>
+
+        {% if error %}<div class="error-box"><p>{{ error }}</p></div>{% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-chart-bar"></i> Hasil Analisis Likuiditas</h2>
+            <div class="result-grid">
+                <!-- Current Ratio Card -->
+                <div class="ratio-card" style="border-color: {{ result.current_ratio.color }};">
+                    <h5>Rasio Likuid (Current Ratio)</h5>
+                    <div class="value" style="color: {{ result.current_ratio.color }};">{{ result.current_ratio.value }}</div>
+                    <div class="status">{{ result.current_ratio.status }}</div>
+                    <p>Idealnya > 1. Mengukur kemampuan membayar utang likuid dengan seluruh aset likuid.</p>
+                </div>
+                <!-- Quick Ratio Card -->
+                <div class="ratio-card" style="border-color: {{ result.quick_ratio.color }};">
+                    <h5>Rasio Cepat (Quick Ratio)</h5>
+                    <div class="value" style="color: {{ result.quick_ratio.color }};">{{ result.quick_ratio.value }}</div>
+                    <div class="status">{{ result.quick_ratio.status }}</div>
+                    <p>Idealnya > 1. Lebih ketat, tidak termasuk persediaan yang sulit dicairkan.</p>
+                </div>
+                <!-- Cash Ratio Card -->
+                <div class="ratio-card" style="border-color: {{ result.cash_ratio.color }};">
+                    <h5>Rasio Kas (Cash Ratio)</h5>
+                    <div class="value" style="color: {{ result.cash_ratio.color }};">{{ result.cash_ratio.value }}</div>
+                    <div class="status">{{ result.cash_ratio.status }}</div>
+                    <p>Idealnya > 0.5. Mengukur kemampuan membayar utang hanya dengan kas.</p>
+                </div>
+            </div>
+
+            <details class="details-box" open>
+                <summary>Tampilkan Rincian Perhitungan</summary>
+                <div class="calc-step"><span>Total Aset Likuid:</span> <span>{{ result.calculation.total_current_assets }}</span></div>
+                <div class="calc-step"><span>Total Utang Likuid:</span> <span>{{ result.calculation.total_current_liabilities }}</span></div>
+            </details>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+</body>
+</html>

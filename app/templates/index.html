@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Utama - Kalkulator Finansial{% endblock %}
+
+{% block content %}
+    <!-- Header lama sudah dihapus. Konten sekarang langsung dimulai dengan daftar kalkulator. -->
+    <div class="container" style="padding-top: 40px;">
+        <div style="text-align: center; margin-bottom: 40px;">
+             <h2>Selamat Datang di FinansialKu</h2>
+             <p>Pilih alat bantu di bawah ini untuk memulai perencanaan keuangan Anda.</p>
+        </div>
+
+        {% if categories %}
+            {% for category_name, calculators in categories.items() %}
+            <section class="category-section">
+                <h2>{{ category_name }}</h2>
+                <div class="calculator-grid">
+                    {% for calc in calculators %}
+                    <a href="{{ url_for('main.' + calc.endpoint) }}" class="calculator-card">
+                        <i class="fas {{ calc.icon }}"></i>
+                        <span>{{ calc.name }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+        {% else %}
+            <p>Tidak ada kategori kalkulator yang tersedia.</p>
+        {% endif %}
+    </div>
+{% endblock %}
+

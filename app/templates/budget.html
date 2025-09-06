@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Alokasi Anggaran</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .input-group { display: flex; flex-wrap: wrap; gap: 20px; background-color: #e3f2fd; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+        .input-group .form-group { flex: 1 1 300px; margin: 0; }
+        .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; background-color: white; }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+        @media (min-width: 992px) {
+            .main-content { grid-template-columns: 1fr 1fr; }
+        }
+
+        #result-container { display: flex; flex-direction: column; gap: 15px; }
+        .result-card { background-color: var(--card-bg); border-left: 5px solid; border-radius: 8px; padding: 20px; box-shadow: 0 4px 15px var(--shadow-color); transition: transform 0.3s, box-shadow 0.3s; cursor: pointer; }
+        .result-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .result-card h4 { margin-top: 0; font-size: 1.2em; display: flex; align-items: center; }
+        .result-card h4 i { margin-right: 10px; }
+        .result-card .amount { font-size: 2em; font-weight: 700; color: var(--header-bg); margin: 10px 0; }
+        .result-card .description { font-size: 0.9em; color: #666; }
+        
+        .chart-container { position: relative; min-height: 350px; background-color: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px var(--shadow-color); }
+
+        /* Gaya untuk Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border-top: 5px solid; }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #888; }
+        .modal-content h3 { margin-top: 0; }
+        .recommendation-table { width: 100%; margin-top: 15px; border-collapse: collapse; }
+        .recommendation-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .recommendation-table i { color: #555; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-clipboard-list"></i>
+            <h1>Kalkulator Alokasi Anggaran</h1>
+            <p>Alokasikan dana bulanan Anda dengan metode populer dan visualisasi interaktif.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <div class="input-group">
+                <div class="form-group"><label for="total-funds">Total Dana Bulanan Anda (Rp)</label><input type="number" id="total-funds" placeholder="Contoh: 5000000" value="5000000"></div>
+                <div class="form-group">
+                    <label for="budget-method">Pilih Metode Budgeting</label>
+                    <select id="budget-method">
+                        <option value="50-30-20">Metode 50/30/20 (Populer)</option>
+                        <option value="80-20">Metode 80/20 (Bayar Diri Sendiri Dahulu)</option>
+                        <option value="60-40">Metode 60/40 (Seimbang)</option>
+                        <option value="50-50">Metode 50/50 (Agresif)</option>
+                        <option value="70-20-10">Metode 70/20/10 (Donasi/Utang)</option>
+                        <option value="kakeibo">Metode Kakeibo (4 Kategori)</option>
+                        <option value="survival">Metode Bertahan (Survival Mode)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <div id="result-container"></div>
+                <div class="chart-container">
+                    <canvas id="budget-pie-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal untuk Rekomendasi -->
+    <div class="modal-overlay" id="recommendation-modal">
+        <div class="modal-content" id="modal-content-box">
+            <span class="modal-close" id="modal-close-btn">&times;</span>
+            <h3 id="modal-title">Rekomendasi Alokasi</h3>
+            <table class="recommendation-table" id="modal-table"></table>
+        </div>
+    </div>
+
+
+    <script>
+        const totalFundsInput = document.getElementById('total-funds');
+        const budgetMethodSelect = document.getElementById('budget-method');
+        const resultContainer = document.getElementById('result-container');
+        const pieChartCanvas = document.getElementById('budget-pie-chart');
+
+        const modalOverlay = document.getElementById('recommendation-modal');
+        const modalContentBox = document.getElementById('modal-content-box');
+        const modalTitle = document.getElementById('modal-title');
+        const modalTable = document.getElementById('modal-table');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        // Data terpusat untuk semua metode budgeting
+        const budgetMethods = {
+            '50-30-20': [
+                { name: 'Kebutuhan (Needs)', pct: 50, desc: 'Untuk tagihan, belanja bulanan, transportasi, cicilan.', icon: 'fas fa-shopping-cart', color: '#29b6f6', recs: ['Sewa/Cicilan Rumah', 'Tagihan Listrik & Air', 'Belanja Bahan Makanan', 'Transportasi (Bensin/Transport Umum)', 'Pulsa & Paket Data', 'Asuransi'] },
+                { name: 'Keinginan (Wants)', pct: 30, desc: 'Untuk hobi, hiburan, makan di luar, liburan singkat.', icon: 'fas fa-gamepad', color: '#ffa726', recs: ['Langganan Streaming (Netflix, dll)', 'Makan di Restoran/Kafe', 'Hobi & Hiburan', 'Belanja Baju (Non-esensial)', 'Liburan & Jalan-jalan'] },
+                { name: 'Tabungan & Investasi', pct: 20, desc: 'Untuk dana darurat, investasi, dana pensiun, pelunasan utang.', icon: 'fas fa-piggy-bank', color: '#66bb6a', recs: ['Dana Darurat', 'Investasi Saham/Reksa Dana', 'Dana Pensiun', 'Pelunasan Utang Konsumtif'] }
+            ],
+            '80-20': [
+                { name: 'Tabungan & Investasi', pct: 20, desc: 'Sisihkan ini terlebih dahulu untuk masa depan Anda.', icon: 'fas fa-piggy-bank', color: '#66bb6a', recs: ['Investasi Otomatis (Autodebet)', 'Dana Pensiun (Wajib)', 'Menambah Dana Darurat', 'Mulai Investasi Baru'] },
+                { name: 'Biaya Hidup (Spending)', pct: 80, desc: 'Gunakan sisa dana ini untuk semua kebutuhan dan keinginan.', icon: 'fas fa-receipt', color: '#29b6f6', recs: ['Semua Pengeluaran Kebutuhan', 'Semua Pengeluaran Keinginan', 'Fleksibel sesuai prioritas bulanan'] }
+            ],
+            '60-40': [
+                { name: 'Pengeluaran Tetap & Penting', pct: 60, desc: 'Alokasi untuk semua biaya hidup esensial dan tagihan.', icon: 'fas fa-file-invoice-dollar', color: '#29b6f6', recs: ['Cicilan Rumah/Sewa', 'Tagihan Utilitas', 'Asuransi Wajib', 'Belanja Makanan Pokok', 'Transportasi Kerja'] },
+                { name: 'Tujuan Finansial', pct: 40, desc: 'Fokus pada tabungan, investasi, dan pengeluaran fleksibel.', icon: 'fas fa-crosshairs', color: '#66bb6a', recs: ['Investasi Agresif', 'Dana Pensiun Ekstra', 'Tabungan untuk Tujuan Besar (DP Rumah, dll)', 'Hiburan & Keinginan Terencana'] }
+            ],
+            '50-50': [
+                { name: 'Biaya Hidup (Kebutuhan & Keinginan)', pct: 50, desc: 'Gabungan alokasi untuk semua pengeluaran bulanan Anda.', icon: 'fas fa-receipt', color: '#29b6f6', recs: ['Kebutuhan Pokok (makan, sewa)', 'Keinginan (hiburan, hobi)', 'Transportasi', 'Tagihan'] },
+                { name: 'Tabungan & Investasi Agresif', pct: 50, desc: 'Untuk mencapai kebebasan finansial lebih cepat.', icon: 'fas fa-rocket', color: '#66bb6a', recs: ['Investasi Indeks', 'Pelunasan Utang Prioritas Tinggi', 'Dana Darurat (dipercepat)', 'Proyek Sampingan'] }
+            ],
+            '70-20-10': [
+                { name: 'Biaya Hidup (Spending)', pct: 70, desc: 'Untuk semua kebutuhan dan keinginan Anda.', icon: 'fas fa-receipt', color: '#29b6f6', recs: ['Kebutuhan Harian', 'Cicilan', 'Hiburan & Gaya Hidup'] },
+                { name: 'Tabungan & Investasi', pct: 20, desc: 'Alokasi untuk tujuan finansial jangka panjang.', icon: 'fas fa-piggy-bank', color: '#66bb6a', recs: ['Dana Darurat', 'Investasi Jangka Panjang', 'Dana Pendidikan Anak'] },
+                { name: 'Donasi / Utang Konsumtif', pct: 10, desc: 'Untuk memberi atau mempercepat pelunasan utang non-produktif.', icon: 'fas fa-heart', color: '#ef5350', recs: ['Amal & Sedekah', 'Membantu Keluarga', 'Pelunasan Kartu Kredit/Paylater'] }
+            ],
+            'kakeibo': [
+                { name: 'Kebutuhan (Survival)', pct: 40, desc: 'Pengeluaran paling esensial untuk hidup.', icon: 'fas fa-utensils', color: '#29b6f6', recs: ['Makanan & Minuman', 'Tempat Tinggal', 'Tagihan Wajib'] },
+                { name: 'Opsional (Wants)', pct: 30, desc: 'Pengeluaran yang membuat hidup lebih nyaman.', icon: 'fas fa-shopping-bag', color: '#ffa726', recs: ['Belanja (non-pokok)', 'Makan di Luar', 'Transportasi (non-kerja)'] },
+                { name: 'Kultur (Culture)', pct: 20, desc: 'Pengeluaran untuk pengembangan diri dan pengetahuan.', icon: 'fas fa-book', color: '#ab47bc', recs: ['Buku', 'Kursus Online', 'Kunjungan Museum/Pameran', 'Film & Teater'] },
+                { name: 'Ekstra (Extra)', pct: 10, desc: 'Pengeluaran tak terduga atau khusus.', icon: 'fas fa-gift', color: '#ef5350', recs: ['Hadiah', 'Perbaikan Tak Terduga', 'Biaya Medis Darurat Kecil'] }
+            ],
+            'survival': [
+                { name: 'Kebutuhan Pokok', pct: 90, desc: 'Fokus hanya pada pengeluaran yang paling vital.', icon: 'fas fa-shield-alt', color: '#29b6f6', recs: ['Sewa/Cicilan Termurah', 'Makanan Pokok (Masak Sendiri)', 'Transportasi Esensial', 'Tagihan Minimum'] },
+                { name: 'Tabungan Darurat', pct: 10, desc: 'Menyisihkan sedikit demi sedikit untuk keamanan.', icon: 'fas fa-piggy-bank', color: '#66bb6a', recs: ['Menabung di Rekening Terpisah', 'Menambah Dana Darurat Perlahan'] }
+            ]
+        };
+
+        let budgetPieChart; // Variabel untuk menyimpan instance chart
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+        }
+
+        function showRecommendations(title, recommendations, color) {
+            modalTitle.textContent = `Rekomendasi Alokasi untuk ${title}`;
+            modalContentBox.style.borderColor = color;
+            modalTable.innerHTML = ''; // Kosongkan tabel sebelumnya
+            recommendations.forEach(rec => {
+                const row = modalTable.insertRow();
+                row.innerHTML = `<td><i class="fas fa-check-circle" style="color: ${color};"></i> ${rec}</td>`;
+            });
+            modalOverlay.style.display = 'flex';
+        }
+
+        function calculateBudget() {
+            const totalFunds = parseFloat(totalFundsInput.value) || 0;
+            const methodKey = budgetMethodSelect.value;
+            const methodData = budgetMethods[methodKey];
+
+            resultContainer.innerHTML = '';
+            
+            const chartLabels = [];
+            const chartDataPoints = [];
+            const chartColors = [];
+
+            methodData.forEach(category => {
+                const amount = totalFunds * (category.pct / 100);
+                
+                // Buat Kartu Hasil
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.style.borderColor = category.color;
+                card.innerHTML = `
+                    <h4><i class="${category.icon}" style="color: ${category.color};"></i> ${category.name} (${category.pct}%)</h4>
+                    <div class="amount">${formatCurrency(amount)}</div>
+                    <p class="description">${category.desc}</p>`;
+                card.onclick = () => showRecommendations(category.name, category.recs, category.color);
+                resultContainer.appendChild(card);
+
+                // Kumpulkan data untuk Pie Chart
+                chartLabels.push(category.name);
+                chartDataPoints.push(amount);
+                chartColors.push(category.color);
+            });
+
+            // Update atau buat Pie Chart baru
+            if (budgetPieChart) {
+                budgetPieChart.destroy();
+            }
+            budgetPieChart = new Chart(pieChartCanvas, {
+                type: 'pie',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        data: chartDataPoints,
+                        backgroundColor: chartColors,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const percentage = ((value / totalFunds) * 100).toFixed(1);
+                                    return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Event Listeners
+        totalFundsInput.addEventListener('input', calculateBudget);
+        budgetMethodSelect.addEventListener('change', calculateBudget);
+        modalCloseBtn.onclick = () => modalOverlay.style.display = 'none';
+        modalOverlay.onclick = (event) => {
+            if (event.target === modalOverlay) {
+                modalOverlay.style.display = 'none';
+            }
+        };
+
+        // Panggil saat halaman pertama kali dimuat
+        document.addEventListener('DOMContentLoaded', calculateBudget);
+    </script>
+</body>
+</html>

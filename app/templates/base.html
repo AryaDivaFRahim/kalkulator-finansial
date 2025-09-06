@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Kalkulator Finansial{% endblock %}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        .main-header {
+            background-color: var(--header-bg);
+            color: white;
+            padding: 12px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .main-header .brand a {
+            text-decoration: none;
+            color: white;
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+        .greeting-container {
+            font-weight: 600;
+            font-size: 1.1em;
+            text-align: center;
+            flex-grow: 1;
+        }
+        .main-header .user-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-nav .btn-nav {
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            transition: background-color 0.3s, transform 0.2s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9em;
+        }
+        .user-nav .btn-nav:hover {
+            transform: translateY(-2px);
+        }
+        .user-nav .btn-info {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        .user-nav .btn-admin {
+            background-color: #ffa726; /* Warna oranye untuk tombol admin */
+        }
+        .user-nav .btn-logout {
+            background-color: #ef5350;
+        }
+        .user-nav .btn-login {
+            background-color: var(--accent-color);
+        }
+        .info-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); z-index: 2000;
+            display: none; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .info-modal-overlay.visible { display: flex; opacity: 1; }
+        .info-modal-content {
+            background-color: white; color: var(--text-dark); padding: 30px;
+            border-radius: 10px; width: 90%; max-width: 400px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3); position: relative;
+            transform: scale(0.95); transition: transform 0.3s ease;
+        }
+        .info-modal-overlay.visible .info-modal-content { transform: scale(1); }
+        .info-modal-content h3 { color: var(--header-bg); margin-bottom: 20px; text-align: center; }
+        .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .info-item span:first-child { font-weight: 600; }
+        .info-item .status-active { color: #2e7d32; font-weight: bold; }
+        .info-item .status-inactive { color: #c62828; font-weight: bold; }
+        #close-modal-btn {
+            position: absolute; top: 10px; right: 15px; background: none;
+            border: none; font-size: 1.5em; cursor: pointer; color: #aaa;
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <header class="main-header">
+        <div class="brand">
+            <a href="{{ url_for('main.index') }}"><i class="fas fa-calculator"></i> FinansialKu</a>
+        </div>
+        
+        {% if session.user_id %}
+            <div class="greeting-container">
+                Hai, {{ session.display_name or 'Pengguna' }}👋
+            </div>
+            <nav class="user-nav">
+                <!-- TOMBOL ADMIN DINAMIS DI SINI -->
+                {% if session.user_role == 'admin' %}
+                <a href="{{ url_for('admin.dashboard') }}" class="btn-nav btn-admin"><i class="fas fa-user-shield"></i> Akses Admin</a>
+                {% endif %}
+                <button id="info-btn" class="btn-nav btn-info"><i class="fas fa-info-circle"></i> Info Akun</button>
+                <a href="{{ url_for('auth.logout') }}" class="btn-nav btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </nav>
+        {% else %}
+            <div class="greeting-container"></div>
+            <nav class="user-nav">
+                <a href="{{ url_for('auth.login_page') }}" class="btn-nav btn-login"><i class="fas fa-sign-in-alt"></i> Login</a>
+            </nav>
+        {% endif %}
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Dibuat dengan Flask & Firebase</p>
+    </footer>
+
+    {% if session.user_id %}
+    <div id="info-modal" class="info-modal-overlay">
+        <div class="info-modal-content">
+            <button id="close-modal-btn">&times;</button>
+            <h3><i class="fas fa-user-circle"></i> Informasi Akun Anda</h3>
+            <div class="info-item"><span>Email</span><span>{{ session.user_email }}</span></div>
+            <div class="info-item">
+                <span>Status Akun</span>
+                {% if not session.user_disabled %}<span class="status-active">Aktif</span>{% else %}<span class="status-inactive">Nonaktif</span>{% endif %}
+            </div>
+            <div class="info-item"><span>Akses Berakhir</span><span>{{ session.user_expiration }}</span></div>
+        </div>
+    </div>
+    
+    <script>
+        const infoBtn = document.getElementById('info-btn');
+        const infoModal = document.getElementById('info-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        if(infoBtn && infoModal && closeModalBtn) {
+            infoBtn.addEventListener('click', () => infoModal.classList.add('visible'));
+            closeModalBtn.addEventListener('click', () => infoModal.classList.remove('visible'));
+            infoModal.addEventListener('click', (e) => { if (e.target === infoModal) infoModal.classList.remove('visible'); });
+        }
+    </script>
+    {% endif %}
+
+    {% block scripts_extra %}{% endblock %}
+</body>
+</html>
+

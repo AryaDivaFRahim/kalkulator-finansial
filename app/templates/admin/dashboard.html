@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Admin{% endblock %}
+
+{% block content %}
+<div class="container calculator-page">
+    <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+    <div class="calculator-header">
+        <i class="fas fa-user-shield"></i>
+        <h1>Panel Kontrol Admin</h1>
+        <p>Kelola pengguna dan akses ke platform kalkulator finansial.</p>
+    </div>
+
+    <!-- Menampilkan pesan flash (sukses/error) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+            <style>.flash-message{padding:15px;margin-bottom:20px;border-radius:5px;}.flash-message.success{background-color:#e8f5e9;color:#2e7d32;}.flash-message.error{background-color:#ffebee;color:#c62828;}</style>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Form untuk Membuat Pengguna Baru -->
+    <div class="calculator-form-container" style="margin-bottom: 30px;">
+        <h3><i class="fas fa-user-plus"></i> Tambah Pengguna Baru</h3>
+        <form action="{{ url_for('admin.create_user') }}" method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="email">Email Pengguna</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password Awal</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="duration">Durasi Akses</label>
+                    <select id="duration" name="duration" style="width:100%; padding:10px; border-radius: 8px; border: 1px solid #ccc;" onchange="toggleManualDate(this.value)">
+                        <option value="30d">1 Bulan</option>
+                        <option value="90d">3 Bulan</option>
+                        <option value="180d">6 Bulan</option>
+                        <option value="365d">1 Tahun</option>
+                        <option value="forever">Selamanya</option>
+                        <option value="manual">Pilih Tanggal Manual</option>
+                    </select>
+                </div>
+                <div class="form-group" id="manual-date-container" style="display: none;">
+                    <label for="expiration_date">Tanggal Kedaluwarsa</label>
+                    <input type="date" id="expiration_date" name="expiration_date" style="width:100%; padding:8px; border-radius: 8px; border: 1px solid #ccc;">
+                </div>
+            </div>
+            <button type="submit" class="btn-calculate"><i class="fas fa-check-circle"></i> Buat Akun</button>
+        </form>
+    </div>
+
+    <!-- Tabel Daftar Pengguna yang Disempurnakan -->
+    <h3><i class="fas fa-users"></i> Daftar Pengguna Terdaftar</h3>
+    <div class="simulation-table-container">
+        <table class="simulation-table" style="text-align: left; table-layout: fixed; width: 100%;">
+            <thead>
+                <tr>
+                    <th style="width: 30%;">Email</th>
+                    <th style="width: 20%; text-align: center;">Status</th>
+                    <th style="width: 25%;">Akses Berakhir</th>
+                    <th style="width: 25%; text-align: center;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="{% if user.is_expired %}expired-row{% endif %}">
+                    <td style="word-wrap: break-word;">{{ user.email }}</td>
+                    <td style="text-align: center;">
+                        <!-- LOGIKA BARU UNTUK STATUS KEDALUWARSA -->
+                        {% if user.is_expired %}
+                            <span class="status-expired">Durasi Habis</span>
+                        {% elif user.disabled %}
+                            <span class="status-disabled">Nonaktif</span>
+                        {% else %}
+                            <span class="status-active">Aktif</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.expiration_str }}</td>
+                    <td style="text-align: center;">
+                        <!-- Tombol Edit Baru -->
+                        <button type="button" class="btn-action-sm edit" onclick="openEditModal('{{ user.uid }}', '{{ user.email }}')" title="Edit Durasi Akses"><i class="fas fa-calendar-alt"></i></button>
+                        
+                        <form action="{{ url_for('admin.toggle_user_status', uid=user.uid) }}" method="POST" style="display: inline;">
+                            {% if user.disabled %}
+                                <button type="submit" class="btn-action-sm enable" title="Aktifkan"><i class="fas fa-check-circle"></i></button>
+                            {% else %}
+                                <button type="submit" class="btn-action-sm disable" title="Nonaktifkan"><i class="fas fa-ban"></i></button>
+                            {% endif %}
+                        </form>
+                        <form action="{{ url_for('admin.delete_user', uid=user.uid) }}" method="POST" style="display: inline;" onsubmit="return confirm('PERINGATAN: Tindakan ini akan menghapus pengguna secara permanen. Yakin?');">
+                            <button type="submit" class="btn-action-sm delete" title="Hapus"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align: center;">Belum ada pengguna terdaftar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <style>
+            .expired-row { background-color: #ffebee !important; }
+            .status-expired { color: #c62828; font-weight: bold; }
+            .status-disabled { color: #ffa726; font-weight: bold; }
+            .status-active { color: #2e7d32; font-weight: bold; }
+            .btn-action-sm { border: none; padding: 6px 10px; border-radius: 5px; color: white; cursor: pointer; font-size: 0.9em; margin: 0 2px;}
+            .btn-action-sm.edit { background-color: #42a5f5; }
+            .btn-action-sm.enable { background-color: #66bb6a; }
+            .btn-action-sm.disable { background-color: #ffa726; }
+            .btn-action-sm.delete { background-color: #ef5350; }
+        </style>
+    </div>
+</div>
+
+<!-- Modal untuk Edit Durasi -->
+<div id="edit-modal" class="info-modal-overlay">
+    <div class="info-modal-content">
+        <button id="close-edit-modal-btn">&times;</button>
+        <h3><i class="fas fa-calendar-alt"></i> Edit Durasi Akses</h3>
+        <form id="edit-form" method="POST">
+            <div class="form-group">
+                <label>Email Pengguna</label>
+                <input type="email" id="edit-email" readonly style="background: #f0f4f8; font-weight: bold;">
+            </div>
+            <div class="form-group">
+                <label for="new_expiration_date">Tanggal Kedaluwarsa Baru</label>
+                <input type="date" id="new_expiration_date" name="new_expiration_date" required style="width:100%; padding:8px; border-radius: 8px; border: 1px solid #ccc;">
+            </div>
+            <button type="submit" class="btn-calculate"><i class="fas fa-save"></i> Simpan Perubahan</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleManualDate(value) {const manualDateContainer = document.getElementById('manual-date-container');
+        const dateInput = document.getElementById('expiration_date');
+        if (value === 'manual') {
+            manualDateContainer.style.display = 'block';
+            dateInput.required = true;
+        } else {
+            manualDateContainer.style.display = 'none';
+            dateInput.required = false;
+        }
+    }
+
+    const editModal = document.getElementById('edit-modal');
+    const closeEditModalBtn = document.getElementById('close-edit-modal-btn');
+    const editForm = document.getElementById('edit-form');
+    const editEmailInput = document.getElementById('edit-email');
+    
+    function openEditModal(uid, email) {
+        // Set email di form
+        editEmailInput.value = email;
+        // Set action form ke URL yang benar
+        editForm.action = `/admin/edit-user-expiration/${uid}`;
+        // Tampilkan modal
+        editModal.classList.add('visible');
+    }
+
+    closeEditModalBtn.addEventListener('click', () => editModal.classList.remove('visible'));
+    editModal.addEventListener('click', (e) => { if (e.target === editModal) editModal.classList.remove('visible'); });
+</script>
+{% endblock %}
+

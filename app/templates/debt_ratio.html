@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Rasio Utang</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .ratio-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); text-align: center; border-bottom: 5px solid; }
+        .ratio-card h5 { margin-top: 0; font-size: 1.1em; color: #555; }
+        .ratio-card .value { font-size: 2.5em; font-weight: 700; }
+        .ratio-card .status { font-weight: 600; font-size: 1.2em; }
+        .ratio-card p { font-size: 0.85em; color: #666; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-balance-scale-left"></i>
+            <h1>Kalkulator Rasio Utang</h1>
+            <p>Analisis tingkat leverage dan risiko keuangan perusahaan.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.debt_ratio_calculator') }}" method="POST">
+                <div class="form-group"><label for="total_debt">Total Utang (Total Liabilities) (Rp)</label><input type="number" id="total_debt" name="total_debt" placeholder="Contoh: 500000000" required></div>
+                <div class="form-group"><label for="total_assets">Total Aset (Total Assets) (Rp)</label><input type="number" id="total_assets" name="total_assets" placeholder="Contoh: 1200000000" required></div>
+                <div class="form-group"><label for="total_equity">Total Ekuitas (Total Equity) (Rp)</label><input type="number" id="total_equity" name="total_equity" placeholder="Contoh: 700000000" required></div>
+                <button type="submit" class="btn-calculate" style="margin-top:20px;"><i class="fas fa-calculator"></i> Hitung Rasio Utang</button>
+            </form>
+        </div>
+
+        {% if error %}<div class="error-box"><p>{{ error }}</p></div>{% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-chart-line"></i> Hasil Analisis Utang</h2>
+            <div class="result-grid">
+                <!-- Debt-to-Asset Ratio Card -->
+                <div class="ratio-card" style="border-color: {{ result.debt_to_asset.color }};">
+                    <h5>Debt-to-Asset Ratio</h5>
+                    <div class="value" style="color: {{ result.debt_to_asset.color }};">{{ result.debt_to_asset.value }}</div>
+                    <div class="status">{{ result.debt_to_asset.status }}</div>
+                    <p>Semakin rendah, semakin baik. Menunjukkan berapa persen aset yang dibiayai utang.</p>
+                </div>
+                <!-- Debt-to-Equity Ratio Card -->
+                <div class="ratio-card" style="border-color: {{ result.debt_to_equity.color }};">
+                    <h5>Debt-to-Equity Ratio</h5>
+                    <div class="value" style="color: {{ result.debt_to_equity.color }};">{{ result.debt_to_equity.value }}</div>
+                    <div class="status">{{ result.debt_to_equity.status }}</div>
+                    <p>Semakin rendah, semakin baik. Membandingkan utang dengan modal sendiri.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Tabungan</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .simulation-table-container { max-height: 500px; overflow-y: auto; border: 1px solid #bbdefb; border-radius: 8px; margin-top: 20px; }
+        .simulation-table { width: 100%; border-collapse: collapse; }
+        .simulation-table th, .simulation-table td { padding: 12px; text-align: right; border-bottom: 1px solid #e0e0e0; white-space: nowrap; }
+        .simulation-table th { background-color: #e3f2fd; font-weight: 600; position: sticky; top: 0; z-index: 1; }
+        .simulation-table td:first-child, .simulation-table th:first-child { text-align: center; font-weight: 600; }
+        .simulation-table tr:nth-child(even) { background-color: #f7f9fc; }
+        .result-box h3 { margin-top: 30px; color: var(--header-bg); border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-hand-holding-dollar"></i>
+            <h1>Kalkulator Tabungan</h1>
+            <p>Hitung berapa lama waktu yang Anda butuhkan untuk mencapai target tabungan Anda.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.savings_calculator') }}" method="POST">
+                <div class="form-group"><label for="target_goal">Target Tabungan (Rp)</label><input type="number" id="target_goal" name="target_goal" placeholder="Contoh: 20000000" required></div>
+                <div class="form-group"><label for="initial_savings">Tabungan Awal (Rp)</label><input type="number" id="initial_savings" name="initial_savings" placeholder="Contoh: 1000000" required></div>
+                <div class="form-group"><label for="monthly_contribution">Setoran Rutin per Bulan (Rp)</label><input type="number" id="monthly_contribution" name="monthly_contribution" placeholder="Contoh: 500000" required></div>
+                <div class="form-group"><label for="annual_rate">Estimasi Bunga Tahunan (%)</label><input type="number" step="0.01" id="annual_rate" name="annual_rate" placeholder="Contoh: 3 (opsional)"></div>
+                <button type="submit" class="btn-calculate"><i class="fas fa-calculator"></i> Hitung Waktu</button>
+            </form>
+        </div>
+
+        {% if error %}<div class="error-box"><p>{{ error }}</p></div>{% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-bullseye"></i> Hasil Perhitungan Tabungan</h2>
+            <div class="result-item"><span>Total Dana yang Disetor (termasuk tabungan awal):</span><span class="result-value">{{ result.total_contributed }}</span></div>
+            <div class="result-item"><span>Total Bunga yang Didapat:</span><span class="result-value">{{ result.total_interest_earned }}</span></div>
+            <div class="result-item total-gain">
+                <span>Waktu untuk Mencapai Target {{ result.target_goal }}:</span>
+                <span class="result-value">{{ result.time_needed_str }}</span>
+            </div>
+
+            {% if result.growth_schedule %}
+            <h3><i class="fas fa-table"></i> Tabel Simulasi Pertumbuhan</h3>
+            <div class="simulation-table-container">
+                <table class="simulation-table">
+                    <thead>
+                        <tr>
+                            <th>Waktu</th>
+                            <th>Total Setoran</th>
+                            <th>Total Bunga</th>
+                            <th>Saldo Akhir</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in result.growth_schedule %}
+                        <tr>
+                            <td>{{ row.period }}</td>
+                            <td>{{ row.total_contributed }}</td>
+                            <td>{{ row.total_interest }}</td>
+                            <td>{{ row.ending_balance }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Cicilan KPR</title>
+    
+    <!-- Link Font & Ikon -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Link ke file CSS kustom kita -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Gaya khusus untuk tabel simulasi -->
+    <style>
+        .simulation-table-container {
+            max-height: 500px; /* Batasi tinggi tabel */
+            overflow-y: auto; /* Tambahkan scroll vertikal jika kontennya lebih tinggi */
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .simulation-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .simulation-table th, .simulation-table td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #e0e0e0;
+            white-space: nowrap;
+        }
+        .simulation-table th {
+            background-color: #e3f2fd;
+            font-weight: 600;
+            position: sticky; /* Agar header tabel tetap terlihat saat di-scroll */
+            top: 0;
+            z-index: 1;
+        }
+        .simulation-table td:first-child, .simulation-table th:first-child {
+            text-align: center;
+            font-weight: 600;
+        }
+        .simulation-table tr:nth-child(even) {
+            background-color: #f7f9fc;
+        }
+        .result-box h3 {
+            margin-top: 30px;
+            color: var(--header-bg);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 5px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-home"></i>
+            <h1>Kalkulator Cicilan KPR</h1>
+            <p>Estimasi cicilan bulanan untuk kredit pemilikan rumah Anda.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.mortgage_calculator') }}" method="POST">
+                <div class="form-group"><label for="property_price">Harga Properti (Rp)</label><input type="number" id="property_price" name="property_price" placeholder="Contoh: 500000000" required></div>
+                <div class="form-group"><label for="down_payment">Uang Muka / DP (Rp)</label><input type="number" id="down_payment" name="down_payment" placeholder="Contoh: 100000000" required></div>
+                <div class="form-group"><label for="annual_rate">Suku Bunga Tahunan (%)</label><input type="number" id="annual_rate" name="annual_rate" step="0.01" placeholder="Contoh: 8.5" required></div>
+                <div class="form-group"><label for="years">Jangka Waktu (Tahun)</label><input type="number" id="years" name="years" placeholder="Contoh: 20" required></div>
+                <button type="submit" class="btn-calculate"><i class="fas fa-calculator"></i> Hitung Cicilan KPR</button>
+            </form>
+        </div>
+
+        {% if error %}
+        <div class="error-box"><p>{{ error }}</p></div>
+        {% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-poll"></i> Hasil Perhitungan KPR</h2>
+            <div class="result-item"><span>Pokok Pinjaman (Harga - DP):</span><span class="result-value">{{ result.principal }}</span></div>
+            <div class="result-item"><span>Total Bunga Dibayar:</span><span class="result-value">{{ result.total_interest }}</span></div>
+            <div class="result-item"><span>Total Pembayaran:</span><span class="result-value">{{ result.total_paid }}</span></div>
+            <div class="result-item total-gain" style="background-color: #e3f2fd; color: var(--header-bg);"><span>Estimasi Cicilan per Bulan:</span><span class="result-value">{{ result.monthly_payment }}</span></div>
+
+            <!-- Tabel Simulasi Cicilan -->
+            {% if result.amortization_schedule %}
+            <h3><i class="fas fa-table"></i> Tabel Simulasi Cicilan</h3>
+            <div class="simulation-table-container">
+                <table class="simulation-table">
+                    <thead>
+                        <tr>
+                            <th>Bulan ke-</th>
+                            <th>Pembayaran Bunga</th>
+                            <th>Pembayaran Pokok</th>
+                            <th>Sisa Pinjaman</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in result.amortization_schedule %}
+                        <tr>
+                            <td>{{ payment.month }}</td>
+                            <td>{{ payment.interest_payment }}</td>
+                            <td>{{ payment.principal_payment }}</td>
+                            <td>{{ payment.remaining_balance }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 Dibuat dengan Flask</p>
+    </footer>
+</body>
+</html>

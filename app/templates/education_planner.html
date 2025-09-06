@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perencana Dana Pendidikan Anak</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        .child-card { background-color: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); margin-bottom: 20px; }
+        .child-header { font-size: 1.3em; color: var(--header-bg); border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 15px; }
+        .form-row { display: flex; flex-wrap: wrap; gap: 15px; }
+        .form-row .form-group { flex: 1 1 150px; }
+        .education-levels { margin-top: 15px; }
+        .education-levels label { margin-right: 15px; font-weight: 500; }
+        .stage-details { background-color: #f7f9fc; border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-top: 10px; display: none; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .btn-add-child { background-color: #e8f5e9; color: #2e7d32; border: 2px dashed #66bb6a; width: 100%; padding: 15px; font-size: 1.1em; font-weight: 600; cursor: pointer; border-radius: 8px; margin-top: 10px; }
+        #results-container { display: none; }
+        .result-box h3 { margin-top: 30px; color: var(--header-bg); border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; display: inline-block; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .summary-card { padding: 20px; border-radius: 10px; color: white; }
+        .summary-card .label { font-size: 1em; opacity: 0.9; }
+        .summary-card .value { font-size: 2em; font-weight: 700; display: block; }
+        .summary-card.total-cost { background: #ef5350; }
+        .summary-card.projected-fund { background: #66bb6a; }
+        /* .summary-card.shortfall { background: #ffa726; } -- Dihapus */
+        .chart-container { margin-top: 30px; position: relative; min-height: 400px; }
+        .simulation-table-container { max-height: 500px; overflow-y: auto; border: 1px solid #bbdefb; border-radius: 8px; margin-top: 20px; }
+        .simulation-table { width: 100%; border-collapse: collapse; }
+        .simulation-table th, .simulation-table td { padding: 12px; text-align: right; border-bottom: 1px solid #e0e0e0; white-space: nowrap; }
+        .simulation-table th { background-color: #e3f2fd; font-weight: 600; position: sticky; top: 0; }
+        #pdf-btn { display: none; margin: 20px auto 0 auto; background-color: #c62828; }
+        .stress-test-container { background-color: #fff3e0; border: 1px solid #ffe0b2; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .stress-test-container button { background-color: #ffa726; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-right: 10px; }
+        .stress-test-container button#reset-stress-btn { background-color: #757575; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-graduation-cap"></i>
+            <h1>Perencana Dana Pendidikan Anak</h1>
+            <p>Rencanakan masa depan pendidikan anak Anda secara detail dan komprehensif.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <div id="children-container"></div>
+            <button class="btn-add-child" id="add-child-btn"><i class="fas fa-plus-circle"></i> Tambah Anak</button>
+            <hr style="margin: 25px 0;">
+            
+            <h3><i class="fas fa-money-bill-wave"></i> Data Keuangan Keluarga</h3>
+            <div class="form-row">
+                <div class="form-group"><label>Dana Pendidikan Saat Ini (Rp)</label><input type="number" id="current-fund" value="50000000"></div>
+                <div class="form-group"><label>Investasi Rutin per Bulan (Rp)</label><input type="number" id="monthly-investment" value="2000000"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Asumsi Return Investasi (%/thn)</label><input type="number" id="investment-return" value="8"></div>
+                <div class="form-group"><label>Asumsi Inflasi Pendidikan (%/thn)</label><input type="number" id="education-inflation" value="7"><small>Rekomendasi: 6-10%</small></div>
+            </div>
+            <button type="button" class="btn-calculate" style="width:100%; margin-top:20px;" id="calculate-btn"><i class="fas fa-chart-line"></i> Buat Rencana Finansial</button>
+        </div>
+
+        <div id="results-container" class="result-box" style="margin-top: 30px;">
+            <h2><i class="fas fa-poll"></i> Hasil Analisis Rencana Pendidikan</h2>
+            <div class="summary-grid" id="summary-to-print">
+                <div class="summary-card total-cost"><span class="label">Total Biaya Pendidikan Dibutuhkan</span><span class="value" id="summary-cost"></span></div>
+                <div class="summary-card projected-fund"><span class="label">Proyeksi Dana di Akhir</span><span class="value" id="summary-fund"></span></div>
+            </div>
+            <p id="recommendation-text" style="text-align:center; font-weight:bold; margin-top:15px;"></p>
+            
+            <div class="stress-test-container">
+                <strong>Analisis "Stress Test":</strong>
+                <button id="stress-inflation-btn">Simulasi Inflasi +2%</button>
+                <button id="stress-return-btn">Simulasi Return -2%</button>
+                <button id="reset-stress-btn" style="display:none;">Reset Simulasi</button>
+            </div>
+
+            <div class="chart-container" id="chart-to-print">
+                <canvas id="timeline-chart"></canvas>
+            </div>
+
+            <div class="simulation-table-container">
+                <table class="simulation-table">
+                    <thead><tr id="table-header"></tr></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+            <button class="btn-calculate" id="pdf-btn"><i class="fas fa-file-pdf"></i> Simpan sebagai PDF</button>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Variabel Global & Inisialisasi ---
+        const childrenContainer = document.getElementById('children-container');
+        const addChildBtn = document.getElementById('add-child-btn');
+        const calculateBtn = document.getElementById('calculate-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const pdfBtn = document.getElementById('pdf-btn');
+        const stressInflationBtn = document.getElementById('stress-inflation-btn');
+        const stressReturnBtn = document.getElementById('stress-return-btn');
+        const resetStressBtn = document.getElementById('reset-stress-btn');
+        
+        let childCount = 0;
+        let timelineChart;
+        let originalInputs = {};
+        let lastTimelineData = [];
+        const { jsPDF } = window.jspdf;
+
+        const educationStages = {
+            playgroup: { name: 'Playgroup', defaultAge: 3, duration: 2 }, tk: { name: 'TK', defaultAge: 5, duration: 2 },
+            sd: { name: 'SD', defaultAge: 7, duration: 6 }, smp: { name: 'SMP', defaultAge: 13, duration: 3 },
+            sma: { name: 'SMA', defaultAge: 16, duration: 3 }, s1: { name: 'Universitas (S1)', defaultAge: 19, duration: 4 }
+        };
+
+        // --- Fungsi Bantuan ---
+        function formatCurrency(amount, withSymbol = true) {
+            const options = { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 };
+            if (!withSymbol) { options.style = 'decimal'; }
+            return new Intl.NumberFormat('id-ID', options).format(Math.round(amount));
+        }
+
+        // --- Fungsi UI ---
+        function addChild() {
+            childCount++;
+            const childCard = document.createElement('div');
+            childCard.className = 'child-card';
+            childCard.id = `child-${childCount}`;
+            let stagesHTML = Object.keys(educationStages).map(key => `<label><input type="checkbox" class="stage-checkbox" data-stage="${key}"> ${educationStages[key].name}</label>`).join('');
+            childCard.innerHTML = `<h4 class="child-header">Data Anak ${childCount}</h4><div class="form-row"><div class="form-group"><label>Nama Anak</label><input type="text" class="child-name" value="Anak ${childCount}"></div><div class="form-group"><label>Usia Saat Ini</label><input type="number" class="child-age" value="1"></div></div><div class="education-levels"><strong>Rencana Pendidikan:</strong><br>${stagesHTML}</div><div class="stages-container"></div>`;
+            childrenContainer.appendChild(childCard);
+            childCard.querySelectorAll('.stage-checkbox').forEach(cb => cb.addEventListener('change', (e) => toggleStageDetails(e.target, childCount)));
+        }
+
+        function toggleStageDetails(checkbox, childId) {
+            const stageKey = checkbox.dataset.stage;
+            const container = document.querySelector(`#child-${childId} .stages-container`);
+            const existingDetail = container.querySelector(`.stage-details[data-stage="${stageKey}"]`);
+            if (checkbox.checked && !existingDetail) {
+                const stage = educationStages[stageKey];
+                const detailBox = document.createElement('div');
+                detailBox.className = 'stage-details';
+                detailBox.dataset.stage = stageKey;
+                detailBox.style.display = 'block';
+                detailBox.innerHTML = `<h5>Detail untuk ${stage.name}</h5><div class="form-row"><div class="form-group"><label>Usia Masuk</label><input type="number" class="stage-age" value="${stage.defaultAge}"></div><div class="form-group"><label>Uang Pangkal (saat ini)</label><input type="number" class="stage-lump-sum" value="0"></div></div><div class="form-row"><div class="form-group"><label>Uang Sekolah (saat ini)</label><input type="number" class="stage-recurring-fee" value="0"></div><div class="form-group"><label>Frekuensi</label><select class="stage-fee-freq"><option value="12">per Bulan</option><option value="2">per Semester</option><option value="1">per Tahun</option></select></div></div>`;
+                container.appendChild(detailBox);
+            } else if (!checkbox.checked && existingDetail) {
+                existingDetail.remove();
+            }
+        }
+
+        // --- Fungsi Kalkulasi Inti ---
+        function performCalculation(inflationRate, returnRate) {
+            const currentFund = parseFloat(document.getElementById('current-fund').value) || 0;
+            const monthlyInvestment = parseFloat(document.getElementById('monthly-investment').value) || 0;
+            const invReturn = returnRate / 100;
+            const inflation = inflationRate / 100;
+
+            const childrenData = [];
+            document.querySelectorAll('.child-card').forEach(card => {
+                const child = { name: card.querySelector('.child-name').value, currentAge: parseInt(card.querySelector('.child-age').value), stages: [] };
+                card.querySelectorAll('.stage-checkbox:checked').forEach(cb => {
+                    const stageKey = cb.dataset.stage;
+                    const detailBox = card.querySelector(`.stage-details[data-stage="${stageKey}"]`);
+                    child.stages.push({ key: stageKey, entryAge: parseInt(detailBox.querySelector('.stage-age').value), lumpSum: parseFloat(detailBox.querySelector('.stage-lump-sum').value), recurringFee: parseFloat(detailBox.querySelector('.stage-recurring-fee').value), feeFreq: parseInt(detailBox.querySelector('.stage-fee-freq').value), duration: educationStages[stageKey].duration });
+                });
+                childrenData.push(child);
+            });
+
+            const fullTimeline = [];
+            let fundBalance = currentFund;
+            let totalEducationCost = 0;
+            let lastCostYear = 0;
+
+            for (let year = 1; year <= 40; year++) {
+                let costThisYear = 0;
+                childrenData.forEach(child => {
+                    const ageThisYear = child.currentAge + year;
+                    child.stages.forEach(stage => {
+                        if (ageThisYear === stage.entryAge) costThisYear += stage.lumpSum * Math.pow(1 + inflation, year);
+                        if (ageThisYear >= stage.entryAge && ageThisYear < stage.entryAge + stage.duration) costThisYear += (stage.recurringFee * stage.feeFreq) * Math.pow(1 + inflation, year);
+                    });
+                });
+                
+                if (costThisYear > 0) {
+                    lastCostYear = year;
+                }
+
+                totalEducationCost += costThisYear;
+                const investmentThisYear = monthlyInvestment * 12;
+                const interestEarned = (fundBalance + (investmentThisYear / 2)) * invReturn;
+                fundBalance += investmentThisYear + interestEarned - costThisYear;
+                
+                fullTimeline.push({ year: new Date().getFullYear() + year, cost: costThisYear, fund: fundBalance, children: childrenData.map(c => ({ name: c.name, age: c.currentAge + year })) });
+            }
+            
+            const finalTimeline = fullTimeline.slice(0, lastCostYear > 0 ? lastCostYear : 25);
+            const finalFundBalance = finalTimeline.length > 0 ? finalTimeline[finalTimeline.length - 1].fund : currentFund;
+
+            lastTimelineData = finalTimeline;
+            renderResults(finalTimeline, totalEducationCost, finalFundBalance);
+        }
+
+        function renderResults(timeline, totalCost, finalFund) {
+            document.getElementById('summary-cost').textContent = formatCurrency(totalCost);
+            document.getElementById('summary-fund').textContent = formatCurrency(finalFund);
+            
+            const recommendationText = document.getElementById('recommendation-text');
+            
+            // Logika baru untuk teks rekomendasi
+            if (finalFund < 0) {
+                const monthlyInvestment = parseFloat(document.getElementById('monthly-investment').value) || 0;
+                let projectedFundWithoutCosts = parseFloat(document.getElementById('current-fund').value);
+                const invReturn = (parseFloat(document.getElementById('investment-return').value) || 0) / 100;
+                for (let i = 0; i < timeline.length; i++) {
+                    const investmentThisYear = monthlyInvestment * 12;
+                    const interestEarned = (projectedFundWithoutCosts + (investmentThisYear / 2)) * invReturn;
+                    projectedFundWithoutCosts += investmentThisYear + interestEarned;
+                }
+                const shortfallAmount = totalCost - projectedFundWithoutCosts;
+                const neededExtra = shortfallAmount > 0 ? shortfallAmount / timeline.length / 12 : 0;
+                recommendationText.innerHTML = `<strong>PERHATIAN:</strong> Dana Anda diproyeksikan minus (utang) sebesar <strong style="color: #c62828;">${formatCurrency(Math.abs(finalFund))}</strong> di akhir periode.`;
+            } else {
+                recommendationText.innerHTML = `<strong>SELAMAT!</strong> Rencana keuangan Anda sudah di jalur yang tepat dengan proyeksi kelebihan dana sebesar <strong style="color: #1b5e20;">${formatCurrency(finalFund)}</strong>.`;
+            }
+
+            if (timelineChart) timelineChart.destroy();
+            const ctx = document.getElementById('timeline-chart').getContext('2d');
+            timelineChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: timeline.map(t => t.year), datasets: [ { type: 'line', label: 'Proyeksi Dana', data: timeline.map(t => t.fund), borderColor: '#66bb6a', backgroundColor: 'rgba(102, 187, 106, 0.2)', fill: true, yAxisID: 'y' }, { type: 'bar', label: 'Biaya Pendidikan', data: timeline.map(t => t.cost), backgroundColor: '#ef5350', yAxisID: 'y' } ] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Proyeksi Dana vs. Kebutuhan Biaya' } }, scales: { y: { beginAtZero: false } } }
+            });
+
+            const tableHeader = document.getElementById('table-header');
+            const tableBody = document.getElementById('table-body');
+            let headerHTML = '<th>Tahun</th>';
+            document.getElementById('children-container').querySelectorAll('.child-name').forEach(input => { headerHTML += `<th>Usia ${input.value}</th>`; });
+            headerHTML += '<th>Biaya Tahunan</th><th>Dana Terkumpul</th>';
+            tableHeader.innerHTML = headerHTML;
+            
+            tableBody.innerHTML = '';
+            timeline.forEach(t => {
+                let rowHTML = `<td>${t.year}</td>`;
+                t.children.forEach(c => { rowHTML += `<td>${c.age}</td>`; });
+                let fundStyle = t.fund < 0 ? 'style="color: #c62828; font-weight: bold;"' : '';
+                rowHTML += `<td>${formatCurrency(t.cost)}</td><td ${fundStyle}>${formatCurrency(t.fund)}</td>`;
+                tableBody.insertRow().innerHTML = rowHTML;
+            });
+
+            document.getElementById('results-container').style.display = 'block';
+            document.getElementById('pdf-btn').style.display = 'block';
+            document.getElementById('results-container').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        async function generatePDF() {
+            document.getElementById('pdf-btn').textContent = 'Membuat PDF...'; document.getElementById('pdf-btn').disabled = true;
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                let finalY = 15;
+                pdf.setFontSize(18);
+                pdf.text('Laporan Rencana Dana Pendidikan', 105, finalY, { align: 'center' });
+                finalY += 10;
+                const summaryCanvas = await html2canvas(document.getElementById('summary-to-print'));
+                const chartCanvas = await html2canvas(document.getElementById('chart-to-print'));
+                const summaryImgData = summaryCanvas.toDataURL('image/png');
+                const chartImgData = chartCanvas.toDataURL('image/png');
+                const pdfWidth = pdf.internal.pageSize.getWidth() - 20;
+                let imgHeight = summaryCanvas.height * pdfWidth / summaryCanvas.width;
+                pdf.addImage(summaryImgData, 'PNG', 10, finalY, pdfWidth, imgHeight);
+                finalY += imgHeight + 10;
+                imgHeight = chartCanvas.height * pdfWidth / chartCanvas.width;
+                pdf.addImage(chartImgData, 'PNG', 10, finalY, pdfWidth, imgHeight);
+                finalY += imgHeight;
+                const tableHeader = [];
+                document.getElementById('table-header').querySelectorAll('th').forEach(th => tableHeader.push(th.textContent));
+                const tableBody = lastTimelineData.map(row => {
+                    const rowData = [row.year];
+                    row.children.forEach(c => rowData.push(c.age));
+                    rowData.push(formatCurrency(row.cost, false));
+                    rowData.push(formatCurrency(row.fund, false));
+                    return rowData;
+                });
+                pdf.autoTable({
+                    head: [tableHeader], body: tableBody, startY: finalY + 10, margin: { left: 10, right: 10 },
+                    styles: { halign: 'right' },
+                    headStyles: { fillColor: [227, 242, 253], textColor: [28, 61, 90], halign: 'center' },
+                    columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' } },
+                    didParseCell: function(data) {
+                        if (data.column.dataKey === tableHeader.length - 1 && parseFloat(data.cell.raw) < 0) {
+                            data.cell.styles.textColor = [255, 0, 0];
+                        }
+                    }
+                });
+                pdf.save('Rencana-Dana-Pendidikan-Lengkap.pdf');
+            } catch (error) {
+                console.error("Gagal membuat PDF:", error);
+                alert("Terjadi kesalahan saat membuat PDF.");
+            } finally {
+                document.getElementById('pdf-btn').textContent = 'Simpan sebagai PDF';
+                document.getElementById('pdf-btn').disabled = false;
+            }
+        }
+
+        // --- Event Listeners ---
+        document.getElementById('add-child-btn').addEventListener('click', addChild);
+        document.getElementById('calculate-btn').addEventListener('click', () => {
+            originalInputs = { inflation: parseFloat(document.getElementById('education-inflation').value), return: parseFloat(document.getElementById('investment-return').value) };
+            performCalculation(originalInputs.inflation, originalInputs.return);
+            document.getElementById('reset-stress-btn').style.display = 'none';
+        });
+        document.getElementById('stress-inflation-btn').addEventListener('click', () => {
+            performCalculation(originalInputs.inflation + 2, originalInputs.return);
+            document.getElementById('reset-stress-btn').style.display = 'inline-block';
+        });
+        document.getElementById('stress-return-btn').addEventListener('click', () => {
+            performCalculation(originalInputs.inflation, originalInputs.return - 2);
+            document.getElementById('reset-stress-btn').style.display = 'inline-block';
+        });
+        document.getElementById('reset-stress-btn').addEventListener('click', () => {
+            performCalculation(originalInputs.inflation, originalInputs.return);
+            document.getElementById('reset-stress-btn').style.display = 'none';
+        });
+        document.getElementById('pdf-btn').addEventListener('click', generatePDF);
+        
+        // --- Inisialisasi ---
+        addChild();
+    });
+    </script>
+</body>
+</html>

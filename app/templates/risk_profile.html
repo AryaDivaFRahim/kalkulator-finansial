@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Profil Risiko Investasi Pro</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .progress-bar-container { background-color: #e0e0e0; border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+        .progress-bar-fill { height: 10px; width: 0%; background-color: var(--accent-color); transition: width 0.3s ease; }
+        
+        .question-container { min-height: 300px; }
+        .question-box { display: none; }
+        .question-box.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .question-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .question-header h5 { margin: 0; font-size: 1.1em; }
+        .info-icon { cursor: pointer; color: var(--accent-color); font-size: 1.2em; }
+        
+        .option { display: block; background: #f7f9fc; padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid #eee; transition: background-color 0.2s, border-color 0.2s; }
+        .option:hover { background: #e3f2fd; }
+        .option.selected { background-color: #bbdefb; border-color: var(--accent-color); }
+        .option input { margin-right: 10px; }
+        
+        .navigation-buttons { display: flex; justify-content: space-between; margin-top: 20px; }
+        .nav-btn { padding: 10px 25px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        #prev-btn { background-color: #eee; }
+        #next-btn { background-color: var(--accent-color); color: white; }
+
+        #result-box-container { display: none; }
+        .profile-card { text-align: center; padding: 25px; border-radius: 10px; border: 2px solid; }
+        .profile-card i { font-size: 3em; margin-bottom: 15px; }
+        .profile-card h3 { margin-bottom: 10px; }
+        
+        .spectrum-meter { background: linear-gradient(to right, #29b6f6, #ffa726, #ef5350); height: 15px; border-radius: 10px; position: relative; margin: 15px 0; }
+        .spectrum-pointer { width: 3px; height: 25px; background-color: #333; position: absolute; top: -5px; transform: translateX(-50%); transition: left 0.5s ease; }
+        
+        .recommendation-section { margin-top: 20px; text-align: left; }
+        .recommendation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .recommendation-item { background-color: #f7f9fc; padding: 15px; border-radius: 8px; }
+        .recommendation-item h6 { margin: 0 0 5px 0; }
+        .recommendation-item ul { padding-left: 20px; margin: 0; font-size: 0.9em; }
+        
+        .cta-button { display: inline-block; margin-top: 25px; padding: 12px 30px; background-color: #2e7d32; color: white; text-decoration: none; font-weight: 600; border-radius: 8px; transition: background-color 0.3s; }
+        .cta-button:hover { background-color: #1b5e20; }
+
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; max-width: 400px; width: 90%; position: relative; }
+        .modal-close { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-user-shield"></i>
+            <h1>Kuesioner Profil Risiko Investasi</h1>
+            <p>Pahami toleransi risiko Anda untuk membuat keputusan investasi yang lebih baik.</p>
+        </div>
+
+        <div class="calculator-form-container" id="quiz-container">
+            <div class="progress-bar-container"><div class="progress-bar-fill" id="progress-bar"></div></div>
+            <div id="question-container"></div>
+            <div class="navigation-buttons">
+                <button class="nav-btn" id="prev-btn" style="display: none;">Sebelumnya</button>
+                <button class="nav-btn" id="next-btn">Lanjut</button>
+            </div>
+        </div>
+        
+        <div id="result-box-container" class="result-box" style="margin-top: 30px;"></div>
+    </div>
+
+    <div class="modal-overlay" id="info-modal"><div class="modal-content"><span class="modal-close" id="modal-close-btn">&times;</span><p id="modal-text"></p></div></div>
+
+    <script>
+        const questions = [
+            {
+                text: "Berapa usia Anda saat ini?",
+                explanation: "Usia menentukan horizon investasi Anda. Semakin muda Anda, semakin lama waktu yang Anda miliki untuk pulih dari potensi kerugian pasar.",
+                options: [ { text: "Di bawah 30 tahun", score: 10 }, { text: "30 - 45 tahun", score: 7 }, { text: "46 - 55 tahun", score: 4 }, { text: "Di atas 55 tahun", score: 1 } ]
+            },
+            {
+                text: "Apa tujuan utama Anda berinvestasi?",
+                explanation: "Tujuan investasi (misalnya, untuk pensiun vs. DP rumah 3 tahun lagi) sangat memengaruhi jenis investasi yang cocok untuk Anda.",
+                options: [ { text: "Pertumbuhan modal agresif jangka panjang.", score: 10 }, { text: "Keseimbangan antara pertumbuhan dan pendapatan.", score: 5 }, { text: "Menjaga nilai pokok dan mendapat pendapatan rutin.", score: 2 } ]
+            },
+            {
+                text: "Bayangkan pasar saham anjlok 20% dalam sebulan. Apa reaksi Anda?",
+                explanation: "Pertanyaan ini mengukur toleransi emosional Anda terhadap volatilitas pasar, yang merupakan indikator kunci profil risiko.",
+                options: [ { text: "Membeli lebih banyak. Ini adalah kesempatan!", score: 20 }, { text: "Tidak melakukan apa-apa dan tetap tenang.", score: 12 }, { text: "Menjual sebagian untuk mengamankan modal.", score: 5 }, { text: "Menjual semua untuk menghindari kerugian lebih lanjut.", score: 1 } ]
+            },
+            {
+                text: "Seberapa paham Anda tentang produk investasi?",
+                explanation: "Tingkat pemahaman Anda memengaruhi kenyamanan Anda dalam mengelola instrumen investasi yang lebih kompleks dan berisiko.",
+                options: [ { text: "Sangat paham, saya rutin menganalisisnya.", score: 10 }, { text: "Cukup paham konsep dasar dan risikonya.", score: 7 }, { text: "Sedikit tahu, tapi belum mendalam.", score: 4 }, { text: "Pemula, belum memahami sama sekali.", score: 2 } ]
+            },
+            {
+                text: "Berapa lama horizon investasi Anda?",
+                explanation: "Horizon waktu yang lebih panjang memungkinkan Anda mengambil risiko yang lebih besar karena ada lebih banyak waktu untuk pemulihan pasar.",
+                options: [ { text: "Lebih dari 10 tahun.", score: 15 }, { text: "5 - 10 tahun.", score: 10 }, { text: "1 - 5 tahun.", score: 5 }, { text: "Kurang dari 1 tahun.", score: 1 } ]
+            },
+            {
+                text: "Apakah Anda sudah memiliki dana darurat yang mencukupi (3-6 bulan pengeluaran)?",
+                explanation: "Ini mengukur KAPASITAS (kemampuan finansial) Anda untuk mengambil risiko. Tanpa dana darurat, investasi berisiko tinggi bisa sangat berbahaya.",
+                options: [ { text: "Ya, sudah penuh dan terpisah.", score: 0, capacity: 'full' }, { text: "Sebagian, sedang dalam proses mengumpulkan.", score: 0, capacity: 'partial' }, { text: "Belum, saya belum memulainya.", score: 0, capacity: 'none' } ]
+            }
+        ];
+
+        const profiles = {
+            conservative: { title: 'Konservatif', icon: 'fas fa-shield-alt', color: '#29b6f6', description: 'Anda memprioritaskan keamanan pokok investasi. Anda cenderung menghindari risiko dan lebih nyaman dengan instrumen yang stabil.', allocation: { low: 70, medium: 20, high: 10 } },
+            moderate: { title: 'Moderat', icon: 'fas fa-balance-scale', color: '#ffa726', description: 'Anda mencari keseimbangan antara pertumbuhan dan keamanan. Anda bersedia mengambil risiko terukur untuk imbal hasil yang lebih baik.', allocation: { low: 40, medium: 40, high: 20 } },
+            aggressive: { title: 'Agresif', icon: 'fas fa-rocket', color: '#ef5350', description: 'Anda berani mengambil risiko tinggi untuk potensi keuntungan maksimal dan memahami fluktuasi pasar sebagai bagian dari proses.', allocation: { low: 10, medium: 30, high: 60 } }
+        };
+
+        const productExamples = {
+            low: ['Reksa Dana Pasar Uang', 'Deposito', 'Obligasi Pemerintah Ritel (ORI, SBR)'],
+            medium: ['Reksa Dana Pendapatan Tetap', 'Reksa Dana Campuran', 'Obligasi Korporasi'],
+            high: ['Reksa Dana Saham (Indeks/Sektoral)', 'Saham Blue Chip', 'Saham Pertumbuhan']
+        };
+
+        let currentQuestionIndex = 0;
+        let userAnswers = {};
+
+        const progressBar = document.getElementById('progress-bar');
+        const questionContainer = document.getElementById('question-container');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const quizContainer = document.getElementById('quiz-container');
+        const resultContainer = document.getElementById('result-box-container');
+        const modalOverlay = document.getElementById('info-modal');
+        const modalText = document.getElementById('modal-text');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        function renderQuestion(index) {
+            const question = questions[index];
+            let optionsHTML = '';
+            question.options.forEach((opt, i) => {
+                const isChecked = userAnswers[index] && userAnswers[index].score === opt.score;
+                optionsHTML += `
+                    <label class="option ${isChecked ? 'selected' : ''}">
+                        <input type="radio" name="q${index}" value="${opt.score}" data-capacity="${opt.capacity || ''}" ${isChecked ? 'checked' : ''} required>
+                        ${opt.text}
+                    </label>`;
+            });
+
+            questionContainer.innerHTML = `
+                <div class="question-box active" data-index="${index}">
+                    <div class="question-header">
+                        <h5>${index + 1}. ${question.text}</h5>
+                        <i class="fas fa-info-circle info-icon" title="Mengapa ini penting?"></i>
+                    </div>
+                    ${optionsHTML}
+                </div>`;
+            
+            updateProgressBar();
+            updateNavButtons();
+            
+            // Add event listeners for new elements
+            document.querySelector('.info-icon').addEventListener('click', () => showExplanation(question.explanation));
+            document.querySelectorAll(`.option input[name="q${index}"]`).forEach(input => {
+                input.addEventListener('change', (e) => {
+                    document.querySelectorAll(`.option`).forEach(label => label.classList.remove('selected'));
+                    e.target.parentElement.classList.add('selected');
+                    userAnswers[index] = {
+                        score: parseInt(e.target.value),
+                        capacity: e.target.dataset.capacity
+                    };
+                });
+            });
+        }
+
+        function showExplanation(text) {
+            modalText.textContent = text;
+            modalOverlay.style.display = 'flex';
+        }
+
+        function updateProgressBar() {
+            const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        function updateNavButtons() {
+            prevBtn.style.display = currentQuestionIndex > 0 ? 'block' : 'none';
+            nextBtn.textContent = currentQuestionIndex === questions.length - 1 ? 'Lihat Hasil' : 'Lanjut';
+        }
+
+        function calculateAndShowResults() {
+            let totalScore = 0;
+            Object.values(userAnswers).forEach(answer => totalScore += answer.score);
+
+            const capacity = userAnswers[questions.length - 1].capacity;
+            let capacityNote = '';
+            // Adjust score based on risk capacity
+            if (capacity === 'none' && totalScore > 45) {
+                totalScore -= 15; // Reduce score significantly if aggressive but no emergency fund
+                capacityNote = '<p><strong>Catatan:</strong> Skor Anda disesuaikan karena Anda belum memiliki dana darurat. Sangat disarankan untuk memprioritaskan dana darurat sebelum mengambil investasi berisiko tinggi.</p>';
+            } else if (capacity === 'partial' && totalScore > 45) {
+                totalScore -= 7;
+                capacityNote = '<p><strong>Catatan:</strong> Skor Anda disesuaikan. Lanjutkan membangun dana darurat Anda hingga penuh sebelum meningkatkan alokasi ke aset berisiko tinggi.</p>';
+            }
+
+            let profileKey;
+            if (totalScore <= 25) profileKey = 'conservative';
+            else if (totalScore <= 45) profileKey = 'moderate';
+            else profileKey = 'aggressive';
+            
+            const profile = profiles[profileKey];
+            const maxScore = 65; // Sum of max scores: 10+10+20+10+15
+            const scorePercentage = (totalScore / maxScore) * 100;
+
+            resultContainer.innerHTML = `
+                <div class="profile-card" style="border-color: ${profile.color};">
+                    <i class="${profile.icon}" style="color: ${profile.color};"></i>
+                    <h3>Profil Risiko Anda: ${profile.title}</h3>
+                    <div class="spectrum-meter"><div class="spectrum-pointer" style="left: ${scorePercentage}%;"></div></div>
+                    <p>${profile.description}</p>
+                    ${capacityNote}
+                    <hr>
+                    <h4>Rekomendasi Alokasi Aset</h4>
+                    <div class="recommendation-grid">
+                        <div class="recommendation-item">
+                            <h6><i class="fas fa-shield-alt"></i> Risiko Rendah (${profile.allocation.low}%)</h6>
+                            <ul>${productExamples.low.map(p => `<li>${p}</li>`).join('')}</ul>
+                        </div>
+                        <div class="recommendation-item">
+                            <h6><i class="fas fa-balance-scale"></i> Risiko Menengah (${profile.allocation.medium}%)</h6>
+                            <ul>${productExamples.medium.map(p => `<li>${p}</li>`).join('')}</ul>
+                        </div>
+                        <div class="recommendation-item">
+                            <h6><i class="fas fa-rocket"></i> Risiko Tinggi (${profile.allocation.high}%)</h6>
+                            <ul>${productExamples.high.map(p => `<li>${p}</li>`).join('')}</ul>
+                        </div>
+                    </div>
+                    <a href="/portfolio" class="cta-button"><i class="fas fa-chart-pie"></i> Coba Simulasikan di Kalkulator Portofolio</a>
+                </div>`;
+            
+            quizContainer.style.display = 'none';
+            resultContainer.style.display = 'block';
+            resultContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (typeof userAnswers[currentQuestionIndex] === 'undefined') {
+                alert('Harap pilih salah satu opsi.');
+                return;
+            }
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                renderQuestion(currentQuestionIndex);
+            } else {
+                calculateAndShowResults();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                renderQuestion(currentQuestionIndex);
+            }
+        });
+        
+        modalCloseBtn.onclick = () => modalOverlay.style.display = 'none';
+        modalOverlay.onclick = (e) => { if (e.target === modalOverlay) modalOverlay.style.display = 'none'; };
+
+        // Initial render
+        renderQuestion(currentQuestionIndex);
+    </script>
+</body>
+</html>

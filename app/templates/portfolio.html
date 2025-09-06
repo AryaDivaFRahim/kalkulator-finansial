@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Portofolio Investasi</title>
+    
+    <!-- Link Font & Ikon -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Link ke file CSS kustom kita -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- Library Chart.js untuk membuat grafik -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Gaya khusus untuk halaman ini -->
+    <style>
+        .asset-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; align-items: flex-end; }
+        .asset-row .form-group { flex: 1 1 200px; margin-bottom: 0; }
+        .asset-row .form-group label { font-size: 0.9em; }
+        .btn-remove { padding: 10px 15px; background-color: #ef5350; color: white; border: none; border-radius: 8px; cursor: pointer; height: 48px; transition: background-color 0.3s; flex-shrink: 0; }
+        .btn-remove:hover { background-color: #d32f2f; }
+        .btn-add { display: inline-block; margin-top: 10px; padding: 10px 20px; background-color: #26a69a; color: white; border-radius: 8px; cursor: pointer; text-align: center; border: none; font-weight: 600; transition: background-color 0.3s; }
+        .btn-add:hover { background-color: #00796b; }
+        .result-table { width: 100%; margin-top: 25px; border-collapse: collapse; overflow-x: auto; display: block; }
+        .result-table th, .result-table td { border: 1px solid #bbdefb; padding: 12px; text-align: left; white-space: nowrap; }
+        .result-table th { background-color: #e3f2fd; font-weight: 600; }
+        .result-table td:not(:first-child) { text-align: right; }
+        .chart-container { position: relative; height: 50vh; width: 100%; max-width: 900px; margin: 20px auto 0 auto; padding: 20px; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); }
+        .result-box h3 { margin-top: 30px; color: var(--header-bg); border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; display: inline-block; }
+        /* Gaya untuk slider */
+        .slider-container {
+            margin: 20px auto;
+            padding: 15px;
+            max-width: 500px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+        }
+        .slider-container label {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .slider-container input[type=range] {
+            width: 100%;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-briefcase"></i>
+            <h1>Kalkulator Portofolio Investasi</h1>
+            <p>Analisis komposisi dan estimasi return dari semua aset investasi Anda.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.portfolio_calculator') }}" method="POST">
+                <div id="asset-list"></div>
+                <button type="button" class="btn-add" onclick="addAsset()"><i class="fas fa-plus"></i> Tambah Aset</button>
+                <hr style="margin: 25px 0; border-color: #e0e0e0; border-style: dashed;">
+                <button type="submit" class="btn-calculate"><i class="fas fa-chart-pie"></i> Analisis Portofolio</button>
+            </form>
+        </div>
+
+        {% if error %}
+        <div class="error-box"><p>{{ error }}</p></div>
+        {% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-poll"></i> Hasil Analisis Portofolio</h2>
+            <div class="result-item"><span>Total Nilai Portofolio:</span><span class="result-value">{{ result.total_portfolio_value }}</span></div>
+            <div class="result-item"><span>Estimasi Return Tertimbang:</span><span class="result-value">{{ result.weighted_average_return }}</span></div>
+            <div class="result-item"><span>Proyeksi Keuntungan (1 Tahun):</span><span class="result-value">{{ result.projected_growth }}</span></div>
+            <div class="result-item total-gain"><span>Proyeksi Nilai Total (1 Tahun):</span><span class="result-value">{{ result.projected_total_value }}</span></div>
+
+            <!-- Grafik dengan Slider -->
+            <h3><i class="fas fa-chart-line"></i> Grafik Pertumbuhan Aset</h3>
+            <div class="slider-container">
+                <label for="yearsSlider">Proyeksi untuk: <span id="sliderValue">10</span> Tahun</label>
+                <input type="range" id="yearsSlider" min="1" max="40" value="10" step="1" class="slider">
+            </div>
+            <div class="chart-container">
+                <canvas id="growthChart"></canvas>
+            </div>
+
+            <!-- Tabel Rincian Aset -->
+            <h3><i class="fas fa-table"></i> Rincian Aset</h3>
+            <table class="result-table">
+                <thead>
+                    <tr>
+                        <th>Nama Aset</th><th>Nilai Investasi</th><th>Bobot</th><th>Return/Tahun</th><th>Proyeksi Nilai (1 Thn)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in result.assets %}
+                    <tr>
+                        <td>{{ asset.name }}</td><td>{{ asset.value_formatted }}</td><td>{{ asset.weight }}</td><td>{{ asset.return_rate }}%</td><td>{{ asset.projected_value_formatted }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+
+    <script>
+        function addAsset(name = '', value = '', rate = '') {
+            const assetList = document.getElementById('asset-list');
+            const newRow = document.createElement('div');
+            newRow.className = 'asset-row';
+            newRow.innerHTML = `
+                <div class="form-group"><label>Nama Aset</label><input type="text" name="asset_name" placeholder="Contoh: Saham ABCD" value="${name}" required></div>
+                <div class="form-group"><label>Jumlah (Rp)</label><input type="number" name="asset_value" placeholder="10000000" value="${value}" required></div>
+                <div class="form-group"><label>Est. Return Tahunan (%)</label><input type="number" step="0.01" name="asset_return" placeholder="8.5" value="${rate}" required></div>
+                <button type="button" class="btn-remove" onclick="removeAsset(this)" title="Hapus Aset"><i class="fas fa-trash"></i></button>`;
+            assetList.appendChild(newRow);
+        }
+
+        function removeAsset(button) { button.parentElement.remove(); }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if not result %}
+                addAsset('Saham Big Caps', '10000000', '12');
+                addAsset('Emas Logam Mulia', '5000000', '5');
+            {% endif %}
+
+            // Logika untuk grafik dinamis dengan slider
+            {% if result and result.chart_raw_data %}
+            const yearsSlider = document.getElementById('yearsSlider');
+            const sliderValueDisplay = document.getElementById('sliderValue');
+            const rawData = {{ result.chart_raw_data | tojson }};
+            const colors = ['#42a5f5', '#ef5350', '#26a69a', '#ffca28', '#ab47bc', '#78909c', '#66bb6a', '#ec407a'];
+            
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            const growthChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [] }, // Mulai dengan data kosong
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Proyeksi Pertumbuhan per Aset', font: { size: 16 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { ticks: { callback: (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', notation: 'compact' }).format(value) } }
+                    }
+                }
+            });
+
+            function updateChart(years) {
+                growthChart.data.labels = Array.from({length: parseInt(years) + 1}, (_, i) => `Thn ${i}`);
+                growthChart.data.datasets = rawData.map((asset, index) => {
+                    const growthData = [];
+                    for (let year = 0; year <= years; year++) {
+                        const valueAtYear = asset.value * Math.pow((1 + asset.return_rate / 100), year);
+                        growthData.push(valueAtYear.toFixed(2));
+                    }
+                    return {
+                        label: asset.name,
+                        data: growthData,
+                        borderColor: colors[index % colors.length],
+                        backgroundColor: colors[index % colors.length] + '33',
+                        fill: false,
+                        tension: 0.1
+                    };
+                });
+                growthChart.update();
+            }
+
+            yearsSlider.addEventListener('input', (event) => {
+                const years = event.target.value;
+                sliderValueDisplay.textContent = years;
+                updateChart(years);
+            });
+
+            // Panggil fungsi pertama kali untuk menggambar grafik awal
+            updateChart(yearsSlider.value);
+            {% endif %}
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Dana Darurat</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .result-box h3 { margin-top: 30px; color: var(--header-bg); border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; display: inline-block; }
+        .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; background-color: white; }
+        .recommendation-box { padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center; }
+        .recommendation-box.ideal { background-color: #e8f5e9; color: #1b5e20; border: 2px solid #a5d6a7; }
+        .recommendation-box.shortfall { background-color: #ffebee; color: #c62828; border: 2px solid #ef9a9a; }
+        .saving-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .plan-card { background-color: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center; }
+        .plan-card .term { font-weight: 600; font-size: 1.1em; }
+        .plan-card .amount { font-weight: 700; font-size: 1.4em; color: var(--header-bg); }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-shield-halved"></i>
+            <h1>Kalkulator Dana Darurat</h1>
+            <p>Hitung berapa dana darurat yang ideal untuk Anda dan rencanakan cara mencapainya.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.emergency_fund_calculator') }}" method="POST">
+                <div class="form-group"><label for="monthly_expense">Total Pengeluaran Rutin Bulanan (Rp)</label><input type="number" id="monthly_expense" name="monthly_expense" placeholder="Contoh: 4000000" required></div>
+                <div class="form-group"><label for="current_savings">Dana Darurat yang Sudah Dimiliki (Rp)</label><input type="number" id="current_savings" name="current_savings" placeholder="Contoh: 5000000" required></div>
+                <div class="form-group">
+                    <label for="risk_profile">Pilih Profil Anda</label>
+                    <select id="risk_profile" name="risk_profile" required>
+                        <option value="single_stable">Lajang dengan Penghasilan Tetap</option>
+                        <option value="married_stable">Menikah (2 Penghasilan Tetap)</option>
+                        <option value="married_one_income">Menikah (1 Penghasilan)</option>
+                        <option value="freelancer">Pekerja Lepas / Penghasilan Tidak Tetap</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-calculate"><i class="fas fa-calculator"></i> Hitung Kebutuhan</button>
+            </form>
+        </div>
+
+        {% if error %}<div class="error-box"><p>{{ error }}</p></div>{% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-bullseye"></i> Rekomendasi Dana Darurat Anda</h2>
+            <div class="result-item"><span>Pengeluaran Bulanan Anda:</span><span class="result-value">{{ result.monthly_expense }}</span></div>
+            <div class="result-item"><span>Dana Darurat yang Sudah Ada:</span><span class="result-value">{{ result.current_savings }}</span></div>
+            <div class="result-item total-gain">
+                <span>Target Dana Darurat Ideal ({{ result.multiplier }}x Pengeluaran):</span>
+                <span class="result-value">{{ result.target_fund }}</span>
+            </div>
+
+            {% if result.shortfall_raw <= 0 %}
+                <div class="recommendation-box ideal">
+                    <h4><i class="fas fa-check-circle"></i> LUAR BIASA!</h4>
+                    <p>Dana darurat Anda sudah mencapai target ideal. Anda sudah memiliki fondasi keuangan yang kuat!</p>
+                </div>
+            {% else %}
+                <div class="recommendation-box shortfall">
+                    <h4><i class="fas fa-exclamation-triangle"></i> PERLU DITINGKATKAN</h4>
+                    <p>Anda masih membutuhkan <strong>{{ result.shortfall }}</strong> lagi untuk mencapai target dana darurat ideal.</p>
+                </div>
+                {% if result.saving_plans %}
+                <h3><i class="fas fa-calendar-alt"></i> Rencana Menabung</h3>
+                <p>Berikut adalah beberapa opsi rencana menabung untuk menutupi kekurangan tersebut:</p>
+                <div class="saving-plan-grid">
+                    <div class="plan-card">
+                        <div class="term">Target 6 Bulan</div>
+                        <div class="amount">{{ result.saving_plans.plan_6_months }}/bln</div>
+                    </div>
+                    <div class="plan-card">
+                        <div class="term">Target 12 Bulan</div>
+                        <div class="amount">{{ result.saving_plans.plan_12_months }}/bln</div>
+                    </div>
+                    <div class="plan-card">
+                        <div class="term">Target 18 Bulan</div>
+                        <div class="amount">{{ result.saving_plans.plan_18_months }}/bln</div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+</body>
+</html>

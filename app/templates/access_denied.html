@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Akses Berakhir{% endblock %}
+
+{% block content %}
+<div class="container calculator-page" style="max-width: 600px; margin-top: 5vh; text-align: center;">
+    <div class="calculator-header" style="border-left: 5px solid #ef5350;">
+        <i class="fas fa-exclamation-triangle" style="color: #ef5350; font-size: 3em;"></i>
+        <h1 style="color: #c62828;">Akses Anda Telah Berakhir</h1>
+        <p>Mohon maaf, masa berlaku akun Anda untuk mengakses kalkulator finansial telah habis.</p>
+        <p style="margin-top: 15px;">Silakan hubungi administrator untuk informasi lebih lanjut atau untuk memperpanjang akses Anda.</p>
+        <a href="{{ url_for('auth.logout') }}" style="margin-top: 20px; display: inline-block; background-color: #757575; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+            Kembali ke Halaman Utama
+        </a>
+    </div>
+</div>
+{% endblock %}

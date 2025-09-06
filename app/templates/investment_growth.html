@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Pertumbuhan Investasi</title>
+    
+    <!-- Link Font & Ikon -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Link ke file CSS kustom kita -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- Gaya untuk tabel simulasi -->
+    <style>
+        .simulation-table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .simulation-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .simulation-table th, .simulation-table td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #e0e0e0;
+            white-space: nowrap;
+        }
+        .simulation-table th {
+            background-color: #e3f2fd;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .simulation-table td:first-child, .simulation-table th:first-child {
+            text-align: center;
+            font-weight: 600;
+        }
+        .simulation-table tr:nth-child(even) {
+            background-color: #f7f9fc;
+        }
+        .result-box h3 {
+            margin-top: 30px;
+            color: var(--header-bg);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 5px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+
+        <div class="calculator-header">
+            <i class="fas fa-chart-line"></i>
+            <h1>Kalkulator Pertumbuhan Investasi</h1>
+            <p>Hitung potensi pertumbuhan investasi Anda dari waktu ke waktu dengan bunga majemuk.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.investment_growth_calculator') }}" method="POST">
+                <div class="form-group"><label for="principal">Investasi Awal (Rp)</label><input type="number" id="principal" name="principal" placeholder="Contoh: 10000000" required></div>
+                <div class="form-group"><label for="annual_rate">Tingkat Bunga Tahunan (%)</label><input type="number" id="annual_rate" name="annual_rate" step="0.01" placeholder="Contoh: 7.5" required></div>
+                <div class="form-group"><label for="years">Jangka Waktu (Tahun)</label><input type="number" id="years" name="years" placeholder="Contoh: 10" required></div>
+                <button type="submit" class="btn-calculate"><i class="fas fa-calculator"></i> Hitung Sekarang</button>
+            </form>
+        </div>
+
+        {% if error %}
+        <div class="error-box"><p>{{ error }}</p></div>
+        {% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-poll"></i> Hasil Perhitungan</h2>
+            <div class="result-item"><span>Investasi Awal:</span><span class="result-value">{{ result.principal }}</span></div>
+            <div class="result-item"><span>Estimasi Nilai Akhir (setelah {{ result.years }} tahun):</span><span class="result-value">{{ result.future_value }}</span></div>
+            <div class="result-item total-gain"><span>Total Keuntungan Bunga:</span><span class="result-value">{{ result.total_interest }}</span></div>
+
+            <!-- Tabel Pertumbuhan Investasi -->
+            {% if result.growth_schedule %}
+            <h3><i class="fas fa-table"></i> Tabel Pertumbuhan per Tahun</h3>
+            <div class="simulation-table-container">
+                <table class="simulation-table">
+                    <thead>
+                        <tr>
+                            <th>Tahun ke-</th>
+                            <th>Saldo Awal Tahun</th>
+                            <th>Bunga Diterima</th>
+                            <th>Saldo Akhir Tahun</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in result.growth_schedule %}
+                        <tr>
+                            <td>{{ row.year }}</td>
+                            <td>{{ row.starting_balance }}</td>
+                            <td>{{ row.interest_earned }}</td>
+                            <td>{{ row.ending_balance }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+</body>
+</html>

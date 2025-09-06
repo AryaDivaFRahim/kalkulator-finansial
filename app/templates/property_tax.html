@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Pajak Properti (PBB)</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .details-box { background-color: #f7f9fc; border: 1px solid #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .details-box summary { font-weight: 600; cursor: pointer; color: var(--header-bg); font-size: 1.1em; }
+        .details-box summary::-webkit-details-marker { display: none; }
+        .details-box summary::before { content: '▶'; margin-right: 10px; display: inline-block; transition: transform 0.2s; }
+        .details-box[open] summary::before { transform: rotate(90deg); }
+        .calc-step { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; }
+        .calc-step.total { font-weight: bold; border-top: 2px solid #999; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-building-shield"></i>
+            <h1>Kalkulator Pajak Properti (PBB)</h1>
+            <p>Hitung estimasi PBB terutang untuk properti Anda.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.property_tax_calculator') }}" method="POST">
+                <div class="form-group"><label for="luas_tanah">Luas Tanah (m²)</label><input type="number" id="luas_tanah" name="luas_tanah" placeholder="Contoh: 100" required></div>
+                <div class="form-group"><label for="njop_tanah_per_meter">NJOP Tanah per m² (Rp)</label><input type="number" id="njop_tanah_per_meter" name="njop_tanah_per_meter" placeholder="Contoh: 1000000" required></div>
+                <div class="form-group"><label for="luas_bangunan">Luas Bangunan (m²)</label><input type="number" id="luas_bangunan" name="luas_bangunan" placeholder="Contoh: 80" required></div>
+                <div class="form-group"><label for="njop_bangunan_per_meter">NJOP Bangunan per m² (Rp)</label><input type="number" id="njop_bangunan_per_meter" name="njop_bangunan_per_meter" placeholder="Contoh: 1500000" required></div>
+                <hr style="margin: 20px 0;">
+                <div class="form-group"><label for="njoptkp">NJOPTKP (Nilai Jual Objek Pajak Tidak Kena Pajak)</label><input type="number" id="njoptkp" name="njoptkp" placeholder="Tergantung daerah, contoh: 12000000" required></div>
+                <div class="form-group"><label for="tarif_pbb">Tarif PBB-P2 (%)</label><input type="number" step="0.01" id="tarif_pbb" name="tarif_pbb" placeholder="Tergantung daerah, contoh: 0.2" required></div>
+                <button type="submit" class="btn-calculate"><i class="fas fa-calculator"></i> Hitung PBB</button>
+            </form>
+        </div>
+
+        {% if error %}<div class="error-box"><p>{{ error }}</p></div>{% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-file-invoice-dollar"></i> Hasil Perhitungan PBB</h2>
+            <div class="result-item total-gain">
+                <span>PBB Terutang per Tahun:</span>
+                <span class="result-value">{{ result.pbb_terutang }}</span>
+            </div>
+            
+            <details class="details-box" open>
+                <summary>Tampilkan Rincian Perhitungan</summary>
+                <div class="calc-step"><span>NJOP Tanah:</span> <span>{{ result.calculation.njop_tanah }}</span></div>
+                <div class="calc-step"><span>NJOP Bangunan:</span> <span>{{ result.calculation.njop_bangunan }}</span></div>
+                <div class="calc-step total"><span>Total NJOP:</span> <span>{{ result.calculation.njop_total }}</span></div>
+                <div class="calc-step"><span>NJOPTKP:</span> <span>(-) {{ result.calculation.njoptkp }}</span></div>
+                <div class="calc-step total"><span>Dasar Pengenaan Pajak (DPP):</span> <span>{{ result.calculation.dpp }}</span></div>
+            </details>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Dana Pensiun</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .simulation-table-container { max-height: 500px; overflow-y: auto; border: 1px solid #bbdefb; border-radius: 8px; margin-top: 20px; }
+        .simulation-table { width: 100%; border-collapse: collapse; }
+        .simulation-table th, .simulation-table td { padding: 12px; text-align: right; border-bottom: 1px solid #e0e0e0; white-space: nowrap; }
+        .simulation-table th { background-color: #e3f2fd; font-weight: 600; position: sticky; top: 0; z-index: 1; }
+        .simulation-table td:first-child, .simulation-table th:first-child { text-align: center; font-weight: 600; }
+        .simulation-table tr:nth-child(even) { background-color: #f7f9fc; }
+        .result-box h3 { margin-top: 30px; color: var(--header-bg); border-bottom: 2px solid var(--accent-color); padding-bottom: 5px; display: inline-block; }
+        .conclusion-box { padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center; font-size: 1.1em; }
+        .conclusion-box.positive { background-color: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
+        .conclusion-box.negative { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+        .chart-container { position: relative; height: 50vh; width: 100%; max-width: 900px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-piggy-bank"></i>
+            <h1>Kalkulator Dana Pensiun</h1>
+            <p>Proyeksikan dan analisis kecukupan dana pensiun Anda.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.retirement_calculator') }}" method="POST">
+                 <div class="form-group"><label for="current_age">Usia Anda Saat Ini</label><input type="number" id="current_age" name="current_age" placeholder="Contoh: 30" required></div>
+                <div class="form-group"><label for="retirement_age">Target Usia Pensiun</label><input type="number" id="retirement_age" name="retirement_age" placeholder="Contoh: 55" required></div>
+                <div class="form-group"><label for="current_savings">Total Tabungan Pensiun Saat Ini (Rp)</label><input type="number" id="current_savings" name="current_savings" placeholder="Contoh: 100000000" required></div>
+                <div class="form-group"><label for="monthly_contribution">Kontribusi Tambahan per Bulan (Rp)</label><input type="number" id="monthly_contribution" name="monthly_contribution" placeholder="Contoh: 2000000" required></div>
+                <div class="form-group"><label for="monthly_expense">Target Pengeluaran Bulanan saat Pensiun (nilai saat ini, Rp)</label><input type="number" id="monthly_expense" name="monthly_expense" placeholder="Contoh: 10000000" required></div>
+                <div class="form-group"><label for="investment_rate">Estimasi Return Investasi Tahunan (%)</label><input type="number" step="0.01" id="investment_rate" name="investment_rate" placeholder="Contoh: 8" required></div>
+                <div class="form-group"><label for="inflation_rate">Estimasi Inflasi Tahunan (%)</label><input type="number" step="0.01" id="inflation_rate" name="inflation_rate" placeholder="Contoh: 4" required></div>
+                <button type="submit" class="btn-calculate"><i class="fas fa-calculator"></i> Hitung Proyeksi</button>
+            </form>
+        </div>
+
+        {% if error %}<div class="error-box"><p>{{ error }}</p></div>{% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-poll"></i> Hasil Analisis Pensiun</h2>
+            <div class="result-item"><span>Dana yang Dibutuhkan di Usia {{ result.retirement_age }}:</span><span class="result-value">{{ result.required_nest_egg }}</span></div>
+            <div class="result-item"><span>Proyeksi Dana Anda di Usia {{ result.retirement_age }}:</span><span class="result-value">{{ result.projected_nest_egg }}</span></div>
+            {% if result.shortfall_or_surplus_raw >= 0 %}
+                <div class="result-item total-gain"><span>Surplus Dana Pensiun:</span><span class="result-value">{{ result.shortfall_or_surplus }}</span></div>
+                <div class="conclusion-box positive"><p><strong>Selamat!</strong> Anda berada di jalur yang tepat. Proyeksi dana Anda melebihi dana yang dibutuhkan.</p></div>
+            {% else %}
+                <div class="result-item" style="color: #c62828;"><span>Kekurangan Dana Pensiun:</span><span class="result-value">{{ result.shortfall_or_surplus }}</span></div>
+                <div class="conclusion-box negative"><p><strong>Perhatian!</strong> Proyeksi dana Anda masih di bawah dana yang dibutuhkan. Pertimbangkan untuk menambah kontribusi bulanan.</p></div>
+            {% endif %}
+            
+            <!-- Grafik Pertumbuhan vs Target -->
+            <h3><i class="fas fa-chart-line"></i> Grafik Proyeksi vs Target</h3>
+            <div class="chart-container">
+                <canvas id="retirementChart"></canvas>
+            </div>
+            
+            {% if result.growth_schedule %}
+            <h3><i class="fas fa-table"></i> Tabel Proyeksi Pertumbuhan Dana</h3>
+            <div class="simulation-table-container">
+                <table class="simulation-table">
+                    <thead><tr><th>Pada Usia</th><th>Saldo Awal</th><th>Total Kontribusi</th><th>Bunga Didapat</th><th>Saldo Akhir</th></tr></thead>
+                    <tbody>
+                        {% for row in result.growth_schedule %}
+                        <tr><td>{{ row.year }}</td><td>{{ row.starting_balance }}</td><td>{{ row.contributions }}</td><td>{{ row.interest_earned }}</td><td>{{ row.ending_balance }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+    
+    <script>
+        {% if result and result.chart_data %}
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('retirementChart').getContext('2d');
+            const retirementChart = new Chart(ctx, {
+                type: 'line',
+                data: {{ result.chart_data | tojson }},
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: 'Pertumbuhan Dana Pensiun vs. Target', font: { size: 16 } },
+                        tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(context.parsed.y)}` } }
+                    },
+                    scales: { y: { ticks: { callback: (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', notation: 'compact' }).format(value) } } }
+                }
+            });
+        });
+        {% endif %}
+    </script>
+</body>
+</html>

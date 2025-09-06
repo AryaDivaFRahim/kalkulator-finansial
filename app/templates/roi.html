@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Return on Investment (ROI)</title>
+    
+    <!-- Link Font & Ikon (Sama seperti sebelumnya) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Link ke file CSS kustom kita -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <div class="container calculator-page">
+        <!-- Tombol kembali ke Beranda -->
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+
+        <div class="calculator-header">
+            <i class="fas fa-sack-dollar"></i>
+            <h1>Kalkulator Return on Investment (ROI)</h1>
+            <p>Ukur efisiensi dan profitabilitas investasi Anda.</p>
+        </div>
+
+        <!-- Formulir Kalkulator -->
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.roi_calculator') }}" method="POST">
+                <div class="form-group">
+                    <label for="initial_investment">Biaya Investasi Awal (Rp)</label>
+                    <input type="number" id="initial_investment" name="initial_investment" placeholder="Contoh: 10000000" required>
+                </div>
+                <div class="form-group">
+                    <label for="final_value">Nilai Akhir Investasi (Rp)</label>
+                    <input type="number" id="final_value" name="final_value" placeholder="Contoh: 12500000" required>
+                </div>
+                <button type="submit" class="btn-calculate">
+                    <i class="fas fa-calculator"></i> Hitung ROI
+                </button>
+            </form>
+        </div>
+
+        <!-- Menampilkan Pesan Error -->
+        {% if error %}
+        <div class="error-box">
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Menampilkan Hasil (jika ada) -->
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-poll"></i> Hasil Perhitungan ROI</h2>
+            <div class="result-item">
+                <span>Biaya Investasi Awal:</span>
+                <span class="result-value">{{ result.initial_investment }}</span>
+            </div>
+            <div class="result-item">
+                <span>Nilai Akhir Investasi:</span>
+                <span class="result-value">{{ result.final_value }}</span>
+            </div>
+             <div class="result-item">
+                <span>Keuntungan Bersih (Net Profit):</span>
+                <span class="result-value">{{ result.net_profit }}</span>
+            </div>
+            <div class="result-item total-gain">
+                <span>Return on Investment (ROI):</span>
+                <span class="result-value">{{ result.roi_percentage }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 Dibuat dengan Flask</p>
+    </footer>
+
+</body>
+</html>

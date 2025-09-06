@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Pajak Penghasilan (PPh 21)</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; background-color: white; }
+        .details-box { background-color: #f7f9fc; border: 1px solid #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .details-box summary { font-weight: 600; cursor: pointer; color: var(--header-bg); font-size: 1.1em; }
+        .details-box summary::-webkit-details-marker { display: none; }
+        .details-box summary::before { content: '▶'; margin-right: 10px; display: inline-block; transition: transform 0.2s; }
+        .details-box[open] summary::before { transform: rotate(90deg); }
+        .calc-step { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; }
+        .calc-step.total { font-weight: bold; border-top: 2px solid #999; margin-top: 8px; }
+        .tax-breakdown-list { list-style: none; padding-left: 0; margin-top: 10px; }
+        .tax-breakdown-list li { display: flex; justify-content: space-between; background: #e3f2fd; padding: 8px; border-radius: 4px; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-percent"></i>
+            <h1>Kalkulator Pajak Penghasilan (PPh 21)</h1>
+            <p>Hitung estimasi pajak penghasilan Anda sesuai peraturan UU HPP.</p>
+        </div>
+
+        <div class="calculator-form-container">
+            <form action="{{ url_for('main.income_tax_calculator') }}" method="POST">
+                <div class="form-group"><label for="monthly_salary">Penghasilan Bruto per Bulan (Rp)</label><input type="number" id="monthly_salary" name="monthly_salary" placeholder="Contoh: 8000000" required></div>
+                <div class="form-group">
+                    <label for="marital_status">Status Perkawinan (PTKP)</label>
+                    <select id="marital_status" name="marital_status" required>
+                        <option value="single">TK/0 - Tidak Kawin, 0 Tanggungan</option>
+                        <option value="married">K/0 - Kawin, 0 Tanggungan</option>
+                    </select>
+                </div>
+                <div class="form-group"><label for="dependents">Jumlah Tanggungan (Maksimal 3)</label><input type="number" id="dependents" name="dependents" placeholder="0" min="0" max="3" value="0" required></div>
+                <button type="submit" class="btn-calculate"><i class="fas fa-calculator"></i> Hitung Pajak</button>
+            </form>
+        </div>
+
+        {% if error %}<div class="error-box"><p>{{ error }}</p></div>{% endif %}
+
+        {% if result %}
+        <div class="result-box">
+            <h2><i class="fas fa-file-invoice-dollar"></i> Hasil Perhitungan Pajak</h2>
+            <div class="result-item total-gain">
+                <span>Pajak per Bulan (PPh 21):</span>
+                <span class="result-value">{{ result.monthly_tax }}</span>
+            </div>
+            <div class="result-item">
+                <span>Total Pajak per Tahun:</span>
+                <span class="result-value">{{ result.annual_tax }}</span>
+            </div>
+
+            <details class="details-box">
+                <summary>Tampilkan Rincian Perhitungan</summary>
+                <div class="calc-step"><span>Penghasilan Bruto Setahun:</span> <span>{{ result.calculation.gross_income }}</span></div>
+                <div class="calc-step"><span>Biaya Jabatan:</span> <span>(-) {{ result.calculation.position_cost }}</span></div>
+                <div class="calc-step total"><span>Penghasilan Neto Setahun:</span> <span>{{ result.calculation.net_income }}</span></div>
+                <div class="calc-step"><span>PTKP (Penghasilan Tidak Kena Pajak):</span> <span>(-) {{ result.calculation.total_ptkp }}</span></div>
+                <div class="calc-step total"><span>PKP (Penghasilan Kena Pajak):</span> <span>{{ result.calculation.pkp }}</span></div>
+                
+                <h4 style="margin-top: 20px;">Perhitungan Pajak Progresif:</h4>
+                <ul class="tax-breakdown-list">
+                    {% for item in result.calculation.tax_breakdown %}
+                    <li><span>{{ item.layer }}</span> <span>{{ item.tax }}</span></li>
+                    {% endfor %}
+                </ul>
+            </details>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer><p>&copy; 2024 Dibuat dengan Flask</p></footer>
+</body>
+</html>

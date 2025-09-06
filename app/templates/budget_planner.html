@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perencana Anggaran Tujuan</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        /* --- Styling Progress Bar (Fund Meter) --- */
+        .fund-meter-container {
+            padding: 15px;
+            background: #f7f9fc;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e0e6ed;
+        }
+        .fund-meter {
+            background: #e0e6ed;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 28px;
+            margin-top: 8px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .fund-meter-bar {
+            background: linear-gradient(90deg, #66bb6a, #43a047); /* Gradasi hijau */
+            height: 100%;
+            width: 0%;
+            transition: width 1s ease-out;
+            box-shadow: 0 0 10px rgba(102, 187, 106, 0.7);
+        }
+
+        /* --- Styling Scorecard --- */
+        .summary-card {
+            padding: 20px;
+            border-radius: 12px;
+            color: white; /* Teks berwarna putih agar kontras */
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        /* Warna spesifik untuk setiap scorecard */
+        .summary-card.target { background: #42a5f5; } /* Biru */
+        .summary-card.saving { background: #26a69a; } /* Teal */
+        .summary-card.interest { background: #66bb6a; } /* Hijau */
+
+        .summary-card .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .summary-card .value {
+            font-size: 1.8em;
+            font-weight: 700;
+            display: block;
+            margin-top: 5px;
+        }
+        .summary-card i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 4em;
+            opacity: 0.15;
+        }
+
+        /* --- Styling Kotak Rekomendasi --- */
+        #recommendation-box {
+            padding: 15px 20px;
+            margin-top: 20px;
+            border-radius: 8px;
+            border-left-width: 5px;
+            border-left-style: solid;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        #recommendation-box i {
+            font-size: 1.5em;
+        }
+        /* Style untuk kondisi SUKSES */
+        .recommendation-success {
+            background-color: #e8f5e9; /* Hijau muda */
+            border-color: #4caf50; /* Hijau */
+            color: #2e7d32; /* Hijau tua */
+        }
+        /* Style untuk kondisi PERINGATAN */
+        .recommendation-warning {
+            background-color: #fff3e0; /* Oranye muda */
+            border-color: #fb8c00; /* Oranye */
+            color: #e65100; /* Oranye tua */
+        }
+
+
+        /* --- Styling Tabel Simulasi --- */
+        .simulation-table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e6ed;
+            border-radius: 8px;
+            margin-top: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .simulation-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .simulation-table th, .simulation-table td {
+            padding: 12px 15px;
+            text-align: right;
+            border-bottom: 1px solid #e0e6ed;
+        }
+        .simulation-table th {
+            background-color: #f7f9fc;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        /* Warna baris selang-seling */
+        .simulation-table tbody tr:nth-child(even) {
+            background-color: #f7f9fc;
+        }
+        .simulation-table tbody tr:hover {
+            background-color: #e3f2fd;
+        }
+        /* CSS dari maternity_planner bisa di-copy paste di sini atau di file .css Anda */
+        /* Pastikan untuk menyesuaikan jika ada styling khusus */
+        .phase { display: none; }
+        .phase.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .calculator-form-container { padding-bottom: 120px; }
+        .budget-category { margin-bottom: 20px; background: #f7f9fc; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; }
+        .budget-category-header { font-size: 1.2em; color: var(--header-bg); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .budget-items-container { display: block; }
+        .budget-item-header, .budget-item { display: grid; grid-template-columns: 1fr 150px auto; gap: 10px; align-items: center; margin-bottom: 8px; padding-top: 8px; }
+        .budget-item-header { font-weight: 600; font-size: 0.9em; color: #555; padding-bottom: 5px; border-bottom: 2px solid #ddd; }
+        .budget-item { border-top: 1px solid #eee; }
+        .budget-item input[type="text"], .budget-item input[type="number"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.95em; }
+        .btn-add-item, .btn-remove-item, .btn-remove-category { background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 5px; }
+        .btn-add-item { color: var(--accent-color); }
+        .btn-remove-item, .btn-remove-category { color: #ef5350; }
+        .btn-add-category { width: 100%; padding: 12px; font-size: 1.1em; background-color: #e3f2fd; border: 2px dashed var(--accent-color); color: var(--header-bg); cursor: pointer; border-radius: 8px; }
+        
+        /* Summary Bar Styling */
+        .budget-summary-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--header-bg); color: white; padding: 15px; z-index: 10; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .summary-item .label { font-size: 0.9em; opacity: 0.8; }
+        .summary-item .value { font-size: 1.3em; font-weight: bold; display: block; }
+        #contingency-toggle { display: flex; align-items: center; gap: 8px; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #66bb6a; }
+        input:checked + .slider:before { transform: translateX(20px); }
+        #next-step-btn { padding: 10px 20px; font-size: 1.1em; background-color: var(--accent-color); color: white; border: none; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container calculator-page">
+        <a href="{{ url_for('main.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
+        <div class="calculator-header">
+            <i class="fas fa-bullseye"></i>
+            <h1>Perencana Anggaran Tujuan</h1>
+            <p id="header-subtitle"><b>Bagian 1 dari 2:</b> Rancang anggaran custom untuk tujuan finansial Anda.</p>
+        </div>
+
+        <div id="budgeting-phase" class="phase active">
+            <div class="calculator-form-container">
+                <h3><i class="fas fa-info-circle"></i> Informasi Dasar</h3>
+                <div class="form-group">
+                    <label for="goal-name">Apa Tujuan Finansial Anda?</label>
+                    <input type="text" id="goal-name" placeholder="Contoh: Liburan ke Bali, Beli Laptop Baru, dll.">
+                </div>
+                <div class="form-group">
+                    <label for="goal-date">Kapan Dana Ini Akan Digunakan?</label>
+                    <input type="date" id="goal-date">
+                </div>
+                <hr style="margin: 25px 0;">
+                
+                <h3><i class="fas fa-clipboard-list"></i> Rincian Anggaran</h3>
+                <p>Buat kategori dan tambahkan item-item pengeluaran di dalamnya.</p>
+                
+                <div id="category-container" style="margin-top:20px;"></div>
+                
+                <button type="button" id="add-category-btn" class="btn-add-category">
+                    <i class="fas fa-plus-circle"></i> Tambah Kategori Baru
+                </button>
+            </div>
+
+            <div class="budget-summary-bar">
+                <div class="summary-item">
+                    <span class="label">Total Estimasi Biaya</span>
+                    <span class="value" id="total-budget-display">Rp 0</span>
+                </div>
+                <div id="contingency-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="include-contingency" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span>Dana Darurat (15%)</span>
+                </div>
+                <button id="next-step-btn" disabled>Lanjut ke Rencana Tabungan <i class="fas fa-arrow-right"></i></button>
+            </div>
+        </div>
+
+        <div id="planning-phase" class="phase">
+            <button type="button" class="back-link" id="back-to-budget-btn"><i class="fas fa-arrow-left"></i> Kembali ke Anggaran</button>
+    <div class="calculator-form-container">
+        <h3><i class="fas fa-piggy-bank"></i> Rencana Tabungan Anda</h3>
+        <div class="form-group">
+            <label>Total Target Biaya (dari Anggaran)</label>
+            <input type="text" id="total-target-display" readonly style="font-weight:bold; background:#f0f4f8;">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Dana Saat Ini (Rp)</label>
+                <input type="number" id="current-fund" value="0">
+            </div>
+            <div class="form-group">
+                <label>Asumsi Return Investasi (%/thn)</label>
+                <input type="number" id="investment-return" value="5">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Setoran Rutin per Bulan (Rp)</label>
+            <input type="number" id="monthly-contribution" value="500000" style="width: 100%;">
+        </div>
+        <button type="button" class="btn-calculate" style="width:100%;" id="calculate-plan-btn"><i class="fas fa-sync-alt"></i> Hitung Ulang Rencana</button>
+    </div>
+
+    <div id="results-container" class="result-box" style="display: none;">
+        <h3><i class="fas fa-bullseye"></i> Dashboard Rencana Anda</h3>
+        <div class="fund-meter-container">
+            <p style="font-weight:bold;" id="fund-meter-label">Kesiapan Dana: 0%</p>
+            <div class="fund-meter"><div class="fund-meter-bar" id="fund-meter-bar"></div></div>
+        </div>
+        <div class="summary-grid">
+            <div class="summary-card target">
+                <i class="fas fa-bullseye"></i>
+                <span class="label">Total Target Biaya</span>
+                <span class="value" id="summary-target"></span>
+            </div>
+            <div class="summary-card saving">
+                <i class="fas fa-piggy-bank"></i>
+                <span class="label">Total Tabungan/Bulan</span>
+                <span class="value" id="summary-monthly-saving"></span>
+            </div>
+            <div class="summary-card interest">
+                <i class="fas fa-chart-line"></i>
+                <span class="label">Rata-rata Bunga/Bulan</span>
+                <span class="value" id="summary-average-interest"></span>
+            </div>
+        </div>
+        <div id="recommendation-box" style="margin-top: 20px;"><p id="recommendation-text"></p></div>
+        <h3><i class="fas fa-chart-line"></i> Grafik Proyeksi Dana</h3>
+        <div class="chart-container" style="position: relative; min-height: 400px;"><canvas id="projection-chart"></canvas></div>
+        <h3><i class="fas fa-table"></i> Tabel Simulasi Tabungan</h3>
+        <div class="simulation-table-container">
+            <table class="simulation-table" style="width: 100%;">
+                <thead><tr><th>Bulan ke-</th><th>Saldo Awal</th><th>Setoran</th><th>Bunga</th><th>Saldo Akhir</th></tr></thead>
+                <tbody id="simulation-table-body"></tbody>
+            </table>
+        </div>
+        <button type="button" class="btn-calculate" id="pdf-btn" style="margin-top: 30px; background-color: #c62828;">
+            <i class="fas fa-file-pdf"></i> Simpan Rencana sebagai PDF
+        </button>
+        </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Variabel & State Global ---
+    const budgetingPhase = document.getElementById('budgeting-phase');
+    const planningPhase = document.getElementById('planning-phase');
+    const headerSubtitle = document.getElementById('header-subtitle');
+    let finalTotalBudget = 0;
+    let projectionChart;
+
+    // --- Variabel Fase 1: Anggaran ---
+    const categoryContainer = document.getElementById('category-container');
+    const addCategoryBtn = document.getElementById('add-category-btn');
+    const totalBudgetDisplay = document.getElementById('total-budget-display');
+    const contingencyCheckbox = document.getElementById('include-contingency');
+    const nextStepBtn = document.getElementById('next-step-btn');
+    let categoryCount = 0;
+
+    // --- Variabel Fase 2: Tabungan & PDF ---
+    const backToBudgetBtn = document.getElementById('back-to-budget-btn');
+    const calculatePlanBtn = document.getElementById('calculate-plan-btn');
+    const resultsContainer = document.getElementById('results-container');
+    const totalTargetDisplay = document.getElementById('total-target-display');
+    const pdfBtn = document.getElementById('pdf-btn'); // Variabel baru untuk tombol PDF
+
+    // ======================================================
+    // FUNGSI INTI (Fase 1, 2, dan 3)
+    // ======================================================
+
+    function createItemElement() { /* ... (fungsi ini tidak berubah) ... */
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'budget-item';
+        itemDiv.innerHTML = `
+            <input type="text" class="item-name" placeholder="Nama Item (misal: Tiket Pesawat)">
+            <input type="number" class="item-cost" placeholder="0">
+            <button type="button" class="btn-remove-item"><i class="fas fa-trash"></i></button>
+        `;
+        return itemDiv;
+    }
+
+    function createCategoryElement() { /* ... (fungsi ini tidak berubah) ... */
+        categoryCount++;
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = 'budget-category';
+        categoryDiv.setAttribute('data-category-id', categoryCount);
+        categoryDiv.innerHTML = `
+            <div class="budget-category-header">
+                <input type="text" class="category-title" placeholder="Nama Kategori (misal: Transportasi)" style="font-size: 1.1em; border:none; background: transparent; width: 80%; font-weight: bold;">
+                <button type="button" class="btn-remove-category"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="budget-items-container">
+                <div class="budget-item-header">
+                    <span>Nama Item</span>
+                    <span>Estimasi Biaya (Rp)</span>
+                    <span></span>
+                </div>
+            </div>
+            <button type="button" class="btn-add-item"><i class="fas fa-plus-circle"></i> Tambah Item</button>
+        `;
+        const itemsContainer = categoryDiv.querySelector('.budget-items-container');
+        itemsContainer.appendChild(createItemElement());
+        return categoryDiv;
+    }
+    
+    function updateTotals() { /* ... (fungsi ini tidak berubah) ... */
+        let subtotal = 0;
+        document.querySelectorAll('.budget-item').forEach(item => {
+            const cost = parseFloat(item.querySelector('.item-cost').value) || 0;
+            if (cost > 0) subtotal += cost;
+        });
+        const contingency = contingencyCheckbox.checked ? subtotal * 0.15 : 0;
+        finalTotalBudget = subtotal + contingency;
+        totalBudgetDisplay.textContent = formatCurrency(finalTotalBudget);
+        nextStepBtn.disabled = finalTotalBudget <= 0;
+    }
+
+    function calculateSavingsPlan() { /* ... (fungsi ini tidak berubah) ... */
+        const target = finalTotalBudget;
+        if (target <= 0) return null;
+        const currentFund = parseFloat(document.getElementById('current-fund').value) || 0;
+        const monthlyContribution = parseFloat(document.getElementById('monthly-contribution').value) || 0;
+        const returnRate = (parseFloat(document.getElementById('investment-return').value) || 0) / 100;
+        const monthlyReturn = returnRate / 12;
+        const goalDate = new Date(document.getElementById('goal-date').value);
+        const today = new Date();
+        const monthsRemaining = Math.max(0, (goalDate.getFullYear() - today.getFullYear()) * 12 + goalDate.getMonth() - today.getMonth());
+        if (monthsRemaining <= 0) {
+            alert("Tanggal tujuan harus berada di bulan depan atau lebih!");
+            return null;
+        }
+        let fundBalance = currentFund;
+        const simulationData = [];
+        for (let i = 1; i <= monthsRemaining; i++) {
+            const startBalance = fundBalance;
+            const interest = fundBalance * monthlyReturn;
+            fundBalance += monthlyContribution + interest;
+            simulationData.push({ month: i, start: startBalance, contrib: monthlyContribution, interest: interest, end: fundBalance });
+        }
+        return { target, monthlyContribution, finalFund: fundBalance, monthsRemaining, simulationData, currentFund, returnRate };
+    }
+
+    // --- PERBARUI FUNGSI RENDERPLAN UNTUK MENAMPILKAN TOMBOL PDF ---
+    function renderPlan(planData) {
+        if (!planData) {
+            resultsContainer.style.display = 'none';
+            pdfBtn.style.display = 'none'; // Sembunyikan tombol jika tidak ada data
+            return;
+        }
+        resultsContainer.style.display = 'block';
+        pdfBtn.style.display = 'block'; // Tampilkan tombol PDF
+
+        // Sisa fungsi ini sama seperti sebelumnya, untuk merapikan tampilan
+        const { target, monthlyContribution, finalFund, monthsRemaining, simulationData, currentFund, returnRate } = planData;
+        const percentage = Math.min((currentFund / target) * 100, 100);
+        document.getElementById('fund-meter-label').textContent = `Kesiapan Dana Saat Ini: ${percentage.toFixed(0)}%`;
+        document.getElementById('fund-meter-bar').style.width = `${percentage}%`;
+        document.getElementById('summary-target').textContent = formatCurrency(target);
+        document.getElementById('summary-monthly-saving').textContent = formatCurrency(monthlyContribution);
+        const totalInterest = simulationData.reduce((acc, data) => acc + data.interest, 0);
+        const averageInterest = monthsRemaining > 0 ? totalInterest / monthsRemaining : 0;
+        document.getElementById('summary-average-interest').textContent = formatCurrency(averageInterest);
+        const recommendationBox = document.getElementById('recommendation-box');
+        const recommendationText = document.getElementById('recommendation-text');
+        recommendationBox.classList.remove('recommendation-success', 'recommendation-warning');
+        if (finalFund >= target) {
+            recommendationBox.classList.add('recommendation-success');
+            recommendationText.innerHTML = `<i class="fas fa-check-circle"></i> <div><strong>Selamat!</strong> Dengan rencana ini, dana Anda diproyeksikan akan terkumpul sesuai target.</div>`;
+        } else {
+            recommendationBox.classList.add('recommendation-warning');
+            const monthlyReturn = returnRate / 12;
+            let requiredMonthly = (monthlyReturn > 0) ? (target - currentFund * Math.pow(1 + monthlyReturn, monthsRemaining)) / ((Math.pow(1 + monthlyReturn, monthsRemaining) - 1) / monthlyReturn) : (target - currentFund) / monthsRemaining;
+            const shortfallMonthly = Math.max(0, requiredMonthly - monthlyContribution);
+            recommendationText.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <div><strong>Perhatian!</strong> Untuk mencapai target, Anda perlu menambah tabungan bulanan sebesar <strong>${formatCurrency(shortfallMonthly)}</strong>.</div>`;
+        }
+        if (projectionChart) projectionChart.destroy();
+        const ctx = document.getElementById('projection-chart').getContext('2d');
+        projectionChart = new Chart(ctx, { type: 'line', data: { labels: simulationData.map(d => `Bln ${d.month}`), datasets: [ { label: 'Proyeksi Dana', data: simulationData.map(d => d.end), borderColor: '#66bb6a', backgroundColor: 'rgba(102, 187, 106, 0.2)', fill: true, tension: 0.1, pointBackgroundColor: '#43a047' }, { label: 'Target Dana', data: Array(monthsRemaining).fill(target), borderColor: '#ef5350', borderDash: [5, 5], fill: false, pointRadius: 0 } ] }, options: { responsive: true, maintainAspectRatio: false } });
+        const tableBody = document.getElementById('simulation-table-body');
+        tableBody.innerHTML = simulationData.map(d => `<tr><td>${d.month}</td><td>${formatCurrency(d.start)}</td><td>${formatCurrency(d.contrib)}</td><td>${formatCurrency(d.interest)}</td><td>${formatCurrency(d.end)}</td></tr>`).join('');
+        resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- FUNGSI BARU UNTUK MEMBUAT PDF ---
+    async function generatePDF() {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            alert('Gagal memuat library PDF. Harap coba lagi.');
+            return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+        // --- Data untuk Header ---
+        const goalName = document.getElementById('goal-name').value || "Tujuan Finansial";
+        const goalDate = new Date(document.getElementById('goal-date').value).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        const startDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        let currentY = 15;
+
+        // --- Bagian Header ---
+        doc.setFontSize(18);
+        doc.text(`Rencana Anggaran: ${goalName}`, 105, currentY, { align: 'center' });
+        currentY += 8;
+        doc.setFontSize(11);
+        doc.text(`Tanggal Mulai Pencatatan: ${startDate}`, 105, currentY, { align: 'center' });
+        currentY += 6;
+        doc.text(`Target Tanggal: ${goalDate}`, 105, currentY, { align: 'center' });
+        currentY += 12;
+
+        // --- Tabel Rincian Anggaran ---
+        doc.setFontSize(14);
+        doc.text('Rincian Estimasi Anggaran', 14, currentY);
+        currentY += 7;
+
+        const budgetBody = [];
+        let subtotal = 0;
+        document.querySelectorAll('.budget-category').forEach(categoryEl => {
+            const categoryName = categoryEl.querySelector('.category-title').value || "Kategori Tanpa Nama";
+            categoryEl.querySelectorAll('.budget-item').forEach(itemEl => {
+                const itemName = itemEl.querySelector('.item-name').value;
+                const itemCost = parseFloat(itemEl.querySelector('.item-cost').value) || 0;
+                if (itemName && itemCost > 0) {
+                    subtotal += itemCost;
+                    budgetBody.push([categoryName, itemName, formatCurrency(itemCost)]);
+                }
+            });
+        });
+
+        doc.autoTable({
+            startY: currentY,
+            head: [['Kategori', 'Nama Item', 'Estimasi Biaya']],
+            body: budgetBody,
+            theme: 'striped',
+            headStyles: { fillColor: '#0d47a1' },
+            columnStyles: { 2: { halign: 'right' } }
+        });
+        currentY = doc.previousAutoTable.finalY;
+
+        // --- Tabel Summary Anggaran ---
+        const isContingencyChecked = contingencyCheckbox.checked;
+        const contingency = isContingencyChecked ? subtotal * 0.15 : 0;
+        const finalTotal = subtotal + contingency;
+
+        const summaryBudgetBody = [
+            ['Subtotal Anggaran', formatCurrency(subtotal)],
+            ['Dana Darurat (15%)', isContingencyChecked ? formatCurrency(contingency) : 'Tidak Termasuk'],
+            ['Total Estimasi Anggaran', formatCurrency(finalTotal)]
+        ];
+
+        doc.autoTable({
+            startY: currentY + 1,
+            body: summaryBudgetBody,
+            theme: 'grid',
+            columnStyles: { 0: { fontStyle: 'bold' }, 1: { halign: 'right' } }
+        });
+        
+        // --- Bagian Rencana Tabungan (Halaman 2) ---
+        const planData = calculateSavingsPlan();
+        if (!planData) { // Jika tidak ada rencana tabungan, simpan PDF anggaran saja
+             doc.save(`Rencana_Anggaran_${goalName.replace(/ /g,"_")}.pdf`);
+             return;
+        }
+
+        doc.addPage();
+        currentY = 15;
+        doc.setFontSize(14);
+        doc.text('Dashboard Rencana Tabungan', 14, currentY);
+        currentY += 10;
+        
+        try {
+            const summaryCanvas = await html2canvas(document.querySelector('.summary-grid'), { scale: 2 });
+            doc.addImage(summaryCanvas.toDataURL('image/png'), 'PNG', 15, currentY, 180, (summaryCanvas.height * 180) / summaryCanvas.width);
+            currentY += ((summaryCanvas.height * 180) / summaryCanvas.width) + 10;
+
+            const chartCanvas = await html2canvas(document.getElementById('projection-chart'), { scale: 2, backgroundColor: '#ffffff' });
+            doc.addImage(chartCanvas.toDataURL('image/png'), 'PNG', 15, currentY, 180, (chartCanvas.height * 180) / chartCanvas.width);
+            currentY += ((chartCanvas.height * 180) / chartCanvas.width) + 10;
+        } catch(e) { console.error("Error rendering canvas to image:", e); }
+
+        const savingsBody = planData.simulationData.map(d => [d.month, formatCurrency(d.start), formatCurrency(d.contrib), formatCurrency(d.interest), formatCurrency(d.end)]);
+        doc.autoTable({ 
+            startY: currentY, 
+            head: [['Bulan ke-', 'Saldo Awal', 'Setoran', 'Bunga', 'Saldo Akhir']], 
+            body: savingsBody, 
+            theme: 'grid', 
+            headStyles: { fillColor: '#0d47a1' }, 
+            columnStyles: { 0: {halign: 'center'}, 1: {halign: 'right'}, 2: {halign: 'right'}, 3: {halign: 'right'}, 4: {halign: 'right'} } 
+        });
+        currentY = doc.previousAutoTable.finalY;
+
+        // ===================================================================
+        // --- TAMBAHAN: Tabel Hasil Akhir (Surplus/Defisit) ---
+        // ===================================================================
+        const finalBalance = planData.finalFund;
+        const totalTarget = planData.target;
+        const difference = finalBalance - totalTarget;
+
+        const finalSummaryBody = [
+            ['Proyeksi Saldo Akhir', formatCurrency(finalBalance)],
+            ['Total Kebutuhan Anggaran', formatCurrency(totalTarget)],
+            [difference >= 0 ? 'Sisa Dana (Surplus)' : 'Kekurangan Dana (Defisit)', formatCurrency(difference)]
+        ];
+
+        doc.autoTable({
+            startY: currentY + 5, // Beri jarak lebih
+            body: finalSummaryBody,
+            theme: 'grid',
+            styles: { fontSize: 11 },
+            columnStyles: { 
+                0: { fontStyle: 'bold' },
+                1: { halign: 'right' }
+            },
+            // Warnai baris terakhir berdasarkan hasilnya (hijau untuk surplus, merah untuk defisit)
+            didDrawCell: function(data) {
+                if (data.row.index === 2) { // Baris ketiga (indeks 2)
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(difference >= 0 ? '#2e7d32' : '#c62828'); // Hijau jika surplus, Merah jika defisit
+                }
+            }
+        });
+        
+        doc.save(`Rencana_Anggaran_${goalName.replace(/ /g,"_")}.pdf`);
+    }
+
+    function formatCurrency(amount) { /* ... (fungsi ini tidak berubah) ... */
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount);
+    }
+    
+    // ======================================================
+    // EVENT LISTENERS
+    // ======================================================
+    
+    // --- Listener Fase 1 ---
+    addCategoryBtn.addEventListener('click', () => { categoryContainer.appendChild(createCategoryElement()); });
+    categoryContainer.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-add-item')) { e.target.closest('.budget-category').querySelector('.budget-items-container').appendChild(createItemElement()); }
+        if (e.target.closest('.btn-remove-item')) { e.target.closest('.budget-item').remove(); updateTotals(); }
+        if (e.target.closest('.btn-remove-category')) { e.target.closest('.budget-category').remove(); updateTotals(); }
+    });
+    categoryContainer.addEventListener('input', function(e) { if (e.target.matches('.item-cost') || e.target.matches('.item-name')) { updateTotals(); } });
+    contingencyCheckbox.addEventListener('change', updateTotals);
+
+    // --- Listener Navigasi Antar Fase ---
+    nextStepBtn.addEventListener('click', () => {
+        if (!document.getElementById('goal-date').value) { alert('Harap tentukan tanggal tujuan terlebih dahulu.'); return; }
+        budgetingPhase.classList.remove('active');
+        planningPhase.classList.add('active');
+        headerSubtitle.innerHTML = "<b>Bagian 2 dari 2:</b> Rencanakan tabungan bulanan untuk mencapai target.";
+        totalTargetDisplay.value = formatCurrency(finalTotalBudget);
+        const planData = calculateSavingsPlan();
+        renderPlan(planData);
+    });
+    backToBudgetBtn.addEventListener('click', () => {
+        planningPhase.classList.remove('active');
+        budgetingPhase.classList.add('active');
+        headerSubtitle.innerHTML = "<b>Bagian 1 dari 2:</b> Rancang anggaran custom untuk tujuan finansial Anda.";
+        resultsContainer.style.display = 'none';
+    });
+
+    // --- Listener Fase 2 & 3 ---
+    calculatePlanBtn.addEventListener('click', () => { const planData = calculateSavingsPlan(); renderPlan(planData); });
+    pdfBtn.addEventListener('click', generatePDF); // Listener baru untuk tombol PDF
+    
+    // --- Inisialisasi Halaman ---
+    const today = new Date();
+    today.setMonth(today.getMonth() + 6);
+    document.getElementById('goal-date').value = today.toISOString().split('T')[0];
+    addCategoryBtn.click();
+});
+</script>
+</body>
+</html>
